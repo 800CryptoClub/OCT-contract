@@ -1,4 +1,4 @@
-# HEX
+# OCT
 
 ## Contracts
 Please see the [contracts/](contracts) directory.

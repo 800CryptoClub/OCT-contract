@@ -3,13 +3,13 @@ pragma solidity ^0.5.7;
 import "./StakeableToken.sol";
 
 
-contract HEX is StakeableToken {
+contract OCT is StakeableToken {
     constructor()
         public
     {
         /* Add all Satoshis from UTXO snapshot to contract */
         globals.unclaimedSatoshisTotal = uint64(FULL_SATOSHIS_TOTAL);
-        _mint(address(this), FULL_SATOSHIS_TOTAL * HEARTS_PER_SATOSHI);
+        _mint(address(this), FULL_SATOSHIS_TOTAL * SPADES_PER_SATOSHI);
     }
 
     /**
@@ -28,7 +28,7 @@ contract HEX is StakeableToken {
     function flushTrappedEth()
         external
     {
-        require(address(this).balance != 0, "HEX: No trapped ETH");
+        require(address(this).balance != 0, "OCT: No trapped ETH");
 
         TRAPPED_ETH_FLUSH_ADDR.transfer(address(this).balance);
     }

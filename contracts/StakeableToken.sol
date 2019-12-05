@@ -6,10 +6,10 @@ import "./UTXORedeemableToken.sol";
 contract StakeableToken is UTXORedeemableToken {
     /**
      * @dev PUBLIC FACING: Open a stake.
-     * @param newStakedHearts Number of Hearts to stake
+     * @param newStakedSpades Number of Spades to stake
      * @param newStakedDays Number of days to stake
      */
-    function startStake(uint256 newStakedHearts, uint256 newStakedDays)
+    function startStake(uint256 newStakedSpades, uint256 newStakedDays)
         external
     {
         GlobalsCache memory g;
@@ -18,18 +18,18 @@ contract StakeableToken is UTXORedeemableToken {
         _snapshotGlobalsCache(g, gSnapshot);
 
         /* Make sure staked amount is non-zero */
-        require(newStakedHearts != 0, "HEX: newStakedHearts must be non-zero");
+        require(newStakedSpades != 0, "OCT: newStakedSpades must be non-zero");
 
         /* enforce the minimum stake time */
-        require(newStakedDays >= MIN_STAKE_DAYS, "HEX: newStakedDays lower than minimum");
+        require(newStakedDays >= MIN_STAKE_DAYS, "OCT: newStakedDays lower than minimum");
 
         /* enforce the maximum stake time */
-        require(newStakedDays <= MAX_STAKE_DAYS, "HEX: newStakedDays higher than maximum");
+        require(newStakedDays <= MAX_STAKE_DAYS, "OCT: newStakedDays higher than maximum");
 
         /* Check if log data needs to be updated */
         _storeDailyDataBefore(g, g._currentDay);
 
-        uint256 newStakeShares = calcStakeShares(newStakedHearts, newStakedDays);
+        uint256 newStakeShares = calcStakeShares(newStakedSpades, newStakedDays);
 
         /*
             The startStake timestamp will always be part-way through the current
@@ -44,7 +44,7 @@ contract StakeableToken is UTXORedeemableToken {
         _addStake(
             staked[msg.sender],
             newStakeId,
-            newStakedHearts,
+            newStakedSpades,
             newStakeShares,
             newPooledDay,
             newStakedDays
@@ -54,15 +54,15 @@ contract StakeableToken is UTXORedeemableToken {
             uint40(block.timestamp),
             msg.sender,
             newStakeId,
-            newStakedHearts,
+            newStakedSpades,
             uint16(newStakedDays)
         );
 
         /* Stake is added to pool in next round, not current round */
         g._nextStakeSharesTotal += newStakeShares;
 
-        /* Transfer staked Hearts to contract */
-        _transfer(msg.sender, address(this), newStakedHearts);
+        /* Transfer staked Spades to contract */
+        _transfer(msg.sender, address(this), newStakedSpades);
 
         _saveGlobals1(g);
         _syncGlobals2(g, gSnapshot);
@@ -85,8 +85,8 @@ contract StakeableToken is UTXORedeemableToken {
         _snapshotGlobalsCache(g, gSnapshot);
 
         /* require() is more informative than the default assert() */
-        require(staked[stakerAddr].length != 0, "HEX: Empty stake list");
-        require(stakeIndex < staked[stakerAddr].length, "HEX: stakeIndex invalid");
+        require(staked[stakerAddr].length != 0, "OCT: Empty stake list");
+        require(stakeIndex < staked[stakerAddr].length, "OCT: stakeIndex invalid");
 
         StakeStore storage stRef = staked[stakerAddr][stakeIndex];
 
@@ -95,10 +95,10 @@ contract StakeableToken is UTXORedeemableToken {
         _loadStake(stRef, stakeIdParam, st);
 
         /* Stake must have served full term */
-        require(g._currentDay >= st._pooledDay + st._stakedDays, "HEX: Stake not fully served");
+        require(g._currentDay >= st._pooledDay + st._stakedDays, "OCT: Stake not fully served");
 
         /* Stake must be in still in global pool */
-        require(st._unpooledDay == 0, "HEX: Stake already unpooled");
+        require(st._unpooledDay == 0, "OCT: Stake already unpooled");
 
         /* Check if log data needs to be updated */
         _storeDailyDataBefore(g, g._currentDay);
@@ -160,8 +160,8 @@ contract StakeableToken is UTXORedeemableToken {
         StakeStore[] storage stakeListRef = staked[msg.sender];
 
         /* require() is more informative than the default assert() */
-        require(stakeListRef.length != 0, "HEX: Empty stake list");
-        require(stakeIndex < stakeListRef.length, "HEX: stakeIndex invalid");
+        require(stakeListRef.length != 0, "OCT: Empty stake list");
+        require(stakeIndex < stakeListRef.length, "OCT: stakeIndex invalid");
 
         /* Get stake copy */
         StakeCache memory st;
@@ -196,7 +196,7 @@ contract StakeableToken is UTXORedeemableToken {
             /* Stake hasn't been added to the global pool yet, so no penalties or rewards apply */
             g._nextStakeSharesTotal -= st._stakeShares;
 
-            stakeReturn = st._stakedHearts;
+            stakeReturn = st._stakedSpades;
         }
 
         emit EndStake(
@@ -241,7 +241,7 @@ contract StakeableToken is UTXORedeemableToken {
      * @param stakeSharesParam param from stake to calculate bonuses for
      * @param beginDay first day to calculate bonuses for
      * @param endDay last day (non-inclusive) of range to calculate bonuses for
-     * @return payout Hearts
+     * @return payout Spades
      */
     function calcPayoutRewards(uint256 stakeSharesParam, uint256 beginDay, uint256 endDay)
         public
@@ -256,10 +256,10 @@ contract StakeableToken is UTXORedeemableToken {
 
     /**
      * @dev Calculate stakeShares for a new stake, including any bonus
-     * @param newStakedHearts Number of Hearts to stake
+     * @param newStakedSpades Number of Spades to stake
      * @param newStakedDays Number of days to stake
      */
-    function calcStakeShares(uint256 newStakedHearts, uint256 newStakedDays)
+    function calcStakeShares(uint256 newStakedSpades, uint256 newStakedDays)
         private
         pure
         returns (uint256)
@@ -285,41 +285,41 @@ contract StakeableToken is UTXORedeemableToken {
                             =  3640
                             =  LPB_D_CAP_DAYS
 
-            longerAmount    =  hearts * longerBonus%
+            longerAmount    =  spades * longerBonus%
 
             LARGER PAYS BETTER:
 
-            Bonus percentage scaled 0% to 10% for the first 150M HEX of stake.
+            Bonus percentage scaled 0% to 10% for the first 150M OCT of stake.
 
-            largerBonus%    = (hearts / 150e14) * 10%
-                            = (hearts / 150e14) / 10
-                            =  hearts / 150e15
+            largerBonus%    = (spades / 150e14) * 10%
+                            = (spades / 150e14) / 10
+                            =  spades / 150e15
 
-            largerAmount    =  hearts * largerBonus%
+            largerAmount    =  spades * largerBonus%
 
             combinedBonus%  =         longerBonus%  +  largerBonus%
 
-                                        extraWeeks     hearts
+                                        extraWeeks     spades
                             =           ----------  +  ------
                                             260        150e15
 
-                                extraDays * 150e15     hearts * 1820
+                                extraDays * 150e15     spades * 1820
                             =   ------------------  +  -------------
                                    1820 * 150e15       1820 * 150e15
 
-                                extraDays * 150e15     hearts * 1820
+                                extraDays * 150e15     spades * 1820
                             =   ------------------  +  -------------
                                   1820 * 150e15        1820 * 150e15
 
-                                extraDays * 150e15  +  hearts * 1820
+                                extraDays * 150e15  +  spades * 1820
                             =   ------------------------------------
                                             1820 * 150e15
 
-            combinedAmount  = hearts * combinedBonus%
-                            = hearts * (extraDays * 150e15  +  hearts * 1820)  / (1820 * 150e15)
-                            = hearts * (extraDays * LPB_H   +  hearts * LPB_D) / (LPB_D * LPB_H)
+            combinedAmount  = spades * combinedBonus%
+                            = spades * (extraDays * 150e15  +  spades * 1820)  / (1820 * 150e15)
+                            = spades * (extraDays * LPB_H   +  spades * LPB_D) / (LPB_D * LPB_H)
 
-            stakeShares     = hearts + combinedAmount
+            stakeShares     = spades + combinedAmount
         */
         uint256 cappedExtraDays = 0;
 
@@ -328,14 +328,14 @@ contract StakeableToken is UTXORedeemableToken {
             cappedExtraDays = newStakedDays <= LPB_D_CAP_DAYS ? newStakedDays - 1 : LPB_D_CAP_DAYS;
         }
 
-        uint256 cappedStakedHearts = newStakedHearts <= LPB_H_CAP_HEARTS
-            ? newStakedHearts
-            : LPB_H_CAP_HEARTS;
+        uint256 cappedStakedSpades = newStakedSpades <= LPB_H_CAP_SPADES
+            ? newStakedSpades
+            : LPB_H_CAP_SPADES;
 
-        uint256 combinedAmount = cappedExtraDays * LPB_H + cappedStakedHearts * LPB_D;
-        combinedAmount = newStakedHearts * combinedAmount / (LPB_D * LPB_H);
+        uint256 combinedAmount = cappedExtraDays * LPB_H + cappedStakedSpades * LPB_D;
+        combinedAmount = newStakedSpades * combinedAmount / (LPB_D * LPB_H);
 
-        return newStakedHearts + combinedAmount;
+        return newStakedSpades + combinedAmount;
     }
 
     function _unpoolStake(GlobalsCache memory g, StakeCache memory st)
@@ -359,10 +359,10 @@ contract StakeableToken is UTXORedeemableToken {
                 servedDays,
                 st._stakeShares
             );
-            stakeReturn = st._stakedHearts + payout;
+            stakeReturn = st._stakedSpades + payout;
         } else {
             payout = calcPayoutRewards(st._stakeShares, st._pooledDay, st._pooledDay + servedDays);
-            stakeReturn = st._stakedHearts + payout;
+            stakeReturn = st._stakedSpades + payout;
 
             penalty = _calcLatePenalty(
                 st._stakedDays,
@@ -391,7 +391,7 @@ contract StakeableToken is UTXORedeemableToken {
      * @param stakedDaysParam param from stake
      * @param servedDays number of days actually served
      * @param stakeSharesParam param from stake
-     * @return 1: payout Hearts; 2: penalty Hearts
+     * @return 1: payout Spades; 2: penalty Spades
      */
     function _calcPayoutAndEarlyPenalty(
         GlobalsCache memory g,
@@ -455,8 +455,8 @@ contract StakeableToken is UTXORedeemableToken {
      * and adds penalty to payout pool
      * @param stakedDaysParam param from stake
      * @param unpooledDays stake unpooledDay minus stake pooledDay
-     * @param rawStakeReturn committed stakeHearts plus payout
-     * @return penalty Hearts
+     * @param rawStakeReturn committed stakeSpades plus payout
+     * @return penalty Spades
      */
     function _calcLatePenalty(uint256 stakedDaysParam, uint256 unpooledDays, uint256 rawStakeReturn)
         private

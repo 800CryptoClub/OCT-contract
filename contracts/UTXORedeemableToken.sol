@@ -5,13 +5,13 @@ import "./UTXOClaimValidation.sol";
 
 contract UTXORedeemableToken is UTXOClaimValidation {
     /**
-     * @dev PUBLIC FACING: Claim a BTC address and its Satoshi balance in Hearts
+     * @dev PUBLIC FACING: Claim a BTC address and its Satoshi balance in Spades
      * crediting the appropriate amount to a specified Eth address. Bitcoin ECDSA
      * signature must be from that BTC address and must match the claim message
      * for the Eth address.
      * @param rawSatoshis Raw BTC address balance in Satoshis
      * @param proof Merkle tree proof
-     * @param claimToAddr Destination Eth address to credit Hearts to
+     * @param claimToAddr Destination Eth address to credit Spades to
      * @param pubKeyX First  half of uncompressed ECDSA public key for the BTC address
      * @param pubKeyY Second half of uncompressed ECDSA public key for the BTC address
      * @param addrType Type of BTC address derived from the public key
@@ -19,7 +19,7 @@ contract UTXORedeemableToken is UTXOClaimValidation {
      * @param r r parameter of ECDSA signature
      * @param s s parameter of ECDSA signature
      * @param referrerAddr Eth address of referring user (optional; 0x0 for no referrer)
-     * @return Total number of Hearts credited, if successful
+     * @return Total number of Spades credited, if successful
      */
     function claimBtcAddress(
         uint256 rawSatoshis,
@@ -37,24 +37,24 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         returns (uint256)
     {
         /* Sanity check */
-        require(rawSatoshis <= MAX_BTC_ADDR_BALANCE_SATOSHIS, "HEX: CHK: rawSatoshis");
+        require(rawSatoshis <= MAX_BTC_ADDR_BALANCE_SATOSHIS, "OCT: CHK: rawSatoshis");
 
         /* Ensure signature matches the claim message containing the destination Eth address */
         require(
             signatureMatchesClaim(claimToAddr, pubKeyX, pubKeyY, v, r, s),
-            "HEX: Signature mismatch"
+            "OCT: Signature mismatch"
         );
 
         /* Derive BTC address from public key */
         bytes20 btcAddr = pubKeyToBtcAddress(pubKeyX, pubKeyY, addrType);
 
         /* Ensure BTC address has not yet been claimed */
-        require(!claimedBtcAddresses[btcAddr], "HEX: BTC address balance already claimed");
+        require(!claimedBtcAddresses[btcAddr], "OCT: BTC address balance already claimed");
 
         /* Ensure BTC address is part of the Merkle tree */
         require(
             _btcAddressIsValid(btcAddr, rawSatoshis, proof),
-            "HEX: BTC address or balance unknown"
+            "OCT: BTC address or balance unknown"
         );
 
         /* Mark BTC address as claimed */
@@ -70,28 +70,28 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         address referrerAddr
     )
         private
-        returns (uint256 totalClaimedHearts)
+        returns (uint256 totalClaimedSpades)
     {
         GlobalsCache memory g;
         GlobalsCache memory gSnapshot;
         _loadGlobals(g);
         _snapshotGlobalsCache(g, gSnapshot);
 
-        totalClaimedHearts = _claimSatoshis(g, rawSatoshis, claimToAddr, btcAddr, referrerAddr);
+        totalClaimedSpades = _claimSatoshis(g, rawSatoshis, claimToAddr, btcAddr, referrerAddr);
 
         _syncGlobals1(g, gSnapshot);
         _saveGlobals2(g);
 
-        return totalClaimedHearts;
+        return totalClaimedSpades;
     }
 
     /**
-     * @dev Credit an Eth address with the Hearts value of a raw Satoshis balance
+     * @dev Credit an Eth address with the Spades value of a raw Satoshis balance
      * @param rawSatoshis Raw BTC address balance in Satoshis
-     * @param claimToAddr Destination Eth address for the claimed Hearts to be sent
+     * @param claimToAddr Destination Eth address for the claimed Spades to be sent
      * @param btcAddr Bitcoin address (binary; no base58-check encoding)
      * @param referrerAddr (optional, send 0x0 for no referrer) Eth address of referring user
-     * @return Total number of Hearts credited, if successful
+     * @return Total number of Spades credited, if successful
      */
     function _claimSatoshis(
         GlobalsCache memory g,
@@ -101,10 +101,10 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         address referrerAddr
     )
         private
-        returns (uint256 totalClaimedHearts)
+        returns (uint256 totalClaimedSpades)
     {
         /* Disable claims after the claim phase is over */
-        require(g._currentDay < CLAIM_PHASE_DAYS, "HEX: Claim phase has ended");
+        require(g._currentDay < CLAIM_PHASE_DAYS, "OCT: Claim phase has ended");
 
         /* Check if log data needs to be updated */
         _storeDailyDataBefore(g, g._currentDay);
@@ -112,10 +112,10 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         /* Sanity check */
         require(
             g._claimedBtcAddrCount < CLAIMABLE_BTC_ADDR_COUNT,
-            "HEX: CHK: _claimedBtcAddrCount"
+            "OCT: CHK: _claimedBtcAddrCount"
         );
 
-        (uint256 adjSatoshis, uint256 claimedHearts, uint256 claimBonusHearts) = _calcClaimValues(
+        (uint256 adjSatoshis, uint256 claimedSpades, uint256 claimBonusSpades) = _calcClaimValues(
             g,
             rawSatoshis
         );
@@ -123,20 +123,20 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         /* Increment claim count to track viral rewards */
         g._claimedBtcAddrCount++;
 
-        totalClaimedHearts = _remitBonuses(
+        totalClaimedSpades = _remitBonuses(
             claimToAddr,
             btcAddr,
             rawSatoshis,
             adjSatoshis,
-            claimedHearts,
-            claimBonusHearts,
+            claimedSpades,
+            claimBonusSpades,
             referrerAddr
         );
 
-        /* Claim pre-minted Hearts from contract balance */
-        _transfer(address(this), claimToAddr, claimedHearts);
+        /* Claim pre-minted Spades from contract balance */
+        _transfer(address(this), claimToAddr, claimedSpades);
 
-        return totalClaimedHearts;
+        return totalClaimedSpades;
     }
 
     function _remitBonuses(
@@ -144,16 +144,16 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         bytes20 btcAddr,
         uint256 rawSatoshis,
         uint256 adjSatoshis,
-        uint256 claimedHearts,
-        uint256 claimBonusHearts,
+        uint256 claimedSpades,
+        uint256 claimBonusSpades,
         address referrerAddr
     )
         private
-        returns (uint256 totalClaimedHearts)
+        returns (uint256 totalClaimedSpades)
     {
-        totalClaimedHearts = claimedHearts + claimBonusHearts;
+        totalClaimedSpades = claimedSpades + claimBonusSpades;
 
-        uint256 originBonusHearts = claimBonusHearts;
+        uint256 originBonusSpades = claimBonusSpades;
 
         if (referrerAddr == address(0)) {
             /* No referrer */
@@ -163,23 +163,23 @@ contract UTXORedeemableToken is UTXOClaimValidation {
                 btcAddr,
                 rawSatoshis,
                 adjSatoshis,
-                totalClaimedHearts
+                totalClaimedSpades
             );
         } else {
             /*
-                Of total claimed Hearts, referral bonus of 10% to claimer,
+                Of total claimed Spades, referral bonus of 10% to claimer,
                 and referrer bonus of 20% to referrer.
             */
-            uint256 referralBonusHearts = totalClaimedHearts / 10;
-            uint256 referrerBonusHearts = referralBonusHearts * 2;
-            uint256 combinedBonusHearts = referralBonusHearts + referrerBonusHearts;
+            uint256 referralBonusSpades = totalClaimedSpades / 10;
+            uint256 referrerBonusSpades = referralBonusSpades * 2;
+            uint256 combinedBonusSpades = referralBonusSpades + referrerBonusSpades;
 
-            originBonusHearts += combinedBonusHearts;
+            originBonusSpades += combinedBonusSpades;
 
             if (referrerAddr == claimToAddr) {
                 /* Self-referred is combined (referral + referrer) */
-                claimBonusHearts += combinedBonusHearts;
-                totalClaimedHearts += combinedBonusHearts;
+                claimBonusSpades += combinedBonusSpades;
+                totalClaimedSpades += combinedBonusSpades;
 
                 emit ClaimReferredBySelf(
                     uint40(block.timestamp),
@@ -187,12 +187,12 @@ contract UTXORedeemableToken is UTXOClaimValidation {
                     btcAddr,
                     rawSatoshis,
                     adjSatoshis,
-                    totalClaimedHearts
+                    totalClaimedSpades
                 );
             } else {
                 /* Referred by different address */
-                claimBonusHearts += referralBonusHearts;
-                totalClaimedHearts += referralBonusHearts;
+                claimBonusSpades += referralBonusSpades;
+                totalClaimedSpades += referralBonusSpades;
 
                 emit ClaimReferredByOther(
                     uint40(block.timestamp),
@@ -200,30 +200,30 @@ contract UTXORedeemableToken is UTXOClaimValidation {
                     btcAddr,
                     rawSatoshis,
                     adjSatoshis,
-                    totalClaimedHearts,
+                    totalClaimedSpades,
                     referrerAddr
                 );
 
-                _mint(referrerAddr, referrerBonusHearts);
+                _mint(referrerAddr, referrerBonusSpades);
             }
         }
 
-        _mint(ORIGIN_ADDR, originBonusHearts);
-        _mint(claimToAddr, claimBonusHearts);
+        _mint(ORIGIN_ADDR, originBonusSpades);
+        _mint(claimToAddr, claimBonusSpades);
 
-        return totalClaimedHearts;
+        return totalClaimedSpades;
     }
 
     function _calcClaimValues(GlobalsCache memory g, uint256 rawSatoshis)
         private
         pure
-        returns (uint256 adjSatoshis, uint256 claimedHearts, uint256 claimBonusHearts)
+        returns (uint256 adjSatoshis, uint256 claimedSpades, uint256 claimBonusSpades)
     {
         /* Apply Silly Whale reduction */
         adjSatoshis = _adjustSillyWhale(rawSatoshis);
         require(
             g._claimedSatoshisTotal + adjSatoshis <= CLAIMABLE_SATOSHIS_TOTAL,
-            "HEX: CHK: _claimedSatoshisTotal"
+            "OCT: CHK: _claimedSatoshisTotal"
         );
         g._claimedSatoshisTotal += adjSatoshis;
 
@@ -236,11 +236,11 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         adjSatoshis = _adjustLateClaim(adjSatoshis, rewardDaysRemaining);
         g._unclaimedSatoshisTotal -= adjSatoshis;
 
-        /* Convert to Hearts and calculate speed bonus */
-        claimedHearts = adjSatoshis * HEARTS_PER_SATOSHI;
-        claimBonusHearts = _calcSpeedBonus(claimedHearts, phaseDaysRemaining);
+        /* Convert to Spades and calculate speed bonus */
+        claimedSpades = adjSatoshis * SPADES_PER_SATOSHI;
+        claimBonusSpades = _calcSpeedBonus(claimedSpades, phaseDaysRemaining);
 
-        return (adjSatoshis, claimedHearts, claimBonusHearts);
+        return (adjSatoshis, claimedSpades, claimBonusSpades);
     }
 
     /**
@@ -313,11 +313,11 @@ contract UTXORedeemableToken is UTXOClaimValidation {
 
     /**
      * @dev Calculates speed bonus for claiming earlier in the claim phase
-     * @param claimedHearts Hearts claimed from adjusted BTC address balance Satoshis
+     * @param claimedSpades Spades claimed from adjusted BTC address balance Satoshis
      * @param daysRemaining Number of days remaining in claim phase
-     * @return Speed bonus in Hearts
+     * @return Speed bonus in Spades
      */
-    function _calcSpeedBonus(uint256 claimedHearts, uint256 daysRemaining)
+    function _calcSpeedBonus(uint256 claimedSpades, uint256 daysRemaining)
         private
         pure
         returns (uint256)
@@ -326,11 +326,11 @@ contract UTXORedeemableToken is UTXOClaimValidation {
             Only valid from 0 to CLAIM_REWARD_DAYS days, and only used during that time.
             Speed bonus is 20% ... 0% inclusive.
 
-            bonusHearts = claimedHearts * (daysRemaining  /  CLAIM_REWARD_DAYS) * 20%
-                        = claimedHearts * (daysRemaining  /  CLAIM_REWARD_DAYS) * 20/100
-                        = claimedHearts * (daysRemaining  /  CLAIM_REWARD_DAYS) / 5
-                        = claimedHearts *  daysRemaining  / (CLAIM_REWARD_DAYS  * 5)
+            bonusSpades = claimedSpades * (daysRemaining  /  CLAIM_REWARD_DAYS) * 20%
+                        = claimedSpades * (daysRemaining  /  CLAIM_REWARD_DAYS) * 20/100
+                        = claimedSpades * (daysRemaining  /  CLAIM_REWARD_DAYS) / 5
+                        = claimedSpades *  daysRemaining  / (CLAIM_REWARD_DAYS  * 5)
         */
-        return claimedHearts * daysRemaining / (CLAIM_REWARD_DAYS * 5);
+        return claimedSpades * daysRemaining / (CLAIM_REWARD_DAYS * 5);
     }
 }

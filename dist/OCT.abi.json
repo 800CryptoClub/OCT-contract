@@ -21,7 +21,7 @@
         "type": "address"
       },
       {
-        "name": "value",
+        "name": "amount",
         "type": "uint256"
       }
     ],
@@ -40,7 +40,7 @@
     "constant": false,
     "inputs": [
       {
-        "name": "newStakedHearts",
+        "name": "newStakedSpades",
         "type": "uint256"
       },
       {
@@ -91,15 +91,15 @@
     "constant": false,
     "inputs": [
       {
-        "name": "from",
+        "name": "sender",
         "type": "address"
       },
       {
-        "name": "to",
+        "name": "recipient",
         "type": "address"
       },
       {
-        "name": "value",
+        "name": "amount",
         "type": "uint256"
       }
     ],
@@ -417,7 +417,7 @@
     "constant": true,
     "inputs": [
       {
-        "name": "owner",
+        "name": "account",
         "type": "address"
       }
     ],
@@ -460,7 +460,7 @@
         "type": "uint48"
       },
       {
-        "name": "stakedHearts",
+        "name": "stakedSpades",
         "type": "uint80"
       },
       {
@@ -562,11 +562,11 @@
     "constant": false,
     "inputs": [
       {
-        "name": "to",
+        "name": "recipient",
         "type": "address"
       },
       {
-        "name": "value",
+        "name": "amount",
         "type": "uint256"
       }
     ],
@@ -824,7 +824,7 @@
       },
       {
         "indexed": false,
-        "name": "claimedHearts",
+        "name": "claimedSpades",
         "type": "uint256"
       }
     ],
@@ -861,7 +861,7 @@
       },
       {
         "indexed": false,
-        "name": "claimedHearts",
+        "name": "claimedSpades",
         "type": "uint256"
       }
     ],
@@ -898,7 +898,7 @@
       },
       {
         "indexed": false,
-        "name": "claimedHearts",
+        "name": "claimedSpades",
         "type": "uint256"
       },
       {
@@ -930,7 +930,7 @@
       },
       {
         "indexed": false,
-        "name": "stakedHearts",
+        "name": "stakedSpades",
         "type": "uint256"
       },
       {

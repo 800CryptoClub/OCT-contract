@@ -1,28 +1,28 @@
 {
-  "name": "bitcoinhex",
+  "name": "bitcoinoct",
   "version": "0.0.1",
   "description": "Bitcoin fork onto Ethereum",
   "devDependencies": {
-    "solc": "^0.5.7",
     "solpp": "^0.10.0"
   },
   "scripts": {
-    "build": "./hex-build.js",
-    "dist": "./hex-build.js && cp -p build/HEX.abi.json dist/"
+    "build": "./oct-build.js",
+    "dist": "./oct-build.js && cp -p build/OCT.abi.json dist/"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BitcoinHEX/contract.git"
+    "url": "git+https://github.com/800CryptoClub/OCT-contract.git"
   },
   "author": "TBC Dev <tbc-dev@protonmail.com>",
   "contributors": [
     "Cody Lamson <me@codylamson.com> (https://codylamson.com)"
   ],
   "bugs": {
-    "url": "https://github.com/BitcoinHEX/contract/issues"
+    "url": "https://github.com/800CryptoClub/OCT-contract/issues"
   },
   "homepage": "https://HEX.win",
   "dependencies": {
-    "openzeppelin-solidity": "^2.2.0"
+    "openzeppelin-solidity": "^2.2.0",
+    "solc": "^0.5.7"
   }
 }

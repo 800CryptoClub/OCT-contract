@@ -17,7 +17,7 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         view
         returns (bool)
     {
-        require(_getCurrentDay() < CLAIM_PHASE_DAYS, "HEX: Claim phase has ended");
+        require(_getCurrentDay() < CLAIM_PHASE_DAYS, "OCT: Claim phase has ended");
 
         /* Don't need to check Merkle proof if UTXO BTC address has already been claimed    */
         if (claimedBtcAddresses[btcAddr]) {
@@ -80,7 +80,7 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         pure
         returns (bool)
     {
-        require(v >= 27 && v <= 30, "HEX: v invalid");
+        require(v >= 27 && v <= 30, "OCT: v invalid");
 
         /*
             ecrecover() returns an Eth address rather than a public key, so
@@ -127,7 +127,7 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         pure
         returns (bytes20)
     {
-        require(addrType < BTC_ADDR_TYPE_COUNT, "HEX: addrType invalid");
+        require(addrType < BTC_ADDR_TYPE_COUNT, "OCT: addrType invalid");
 
         /*
             Helpful references:
@@ -188,8 +188,8 @@ contract UTXOClaimValidation is GlobalsAndUtility {
     }
 
     /**
-     * @dev Creates a HEX claim message from an Ethereum address
-     * @param claimToAddr Destination Eth address to credit the claimed Hearts
+     * @dev Creates a OCT claim message from an Ethereum address
+     * @param claimToAddr Destination Eth address to credit the claimed Spades
      * @return Standard claim message
      */
     function _createStandardClaimMessage(address claimToAddr)
@@ -201,14 +201,14 @@ contract UTXOClaimValidation is GlobalsAndUtility {
             uint8(24),
             bytes24("Bitcoin Signed Message:\n"),
             uint8(15 + ETH_ADDRESS_HEX_LEN),
-            bytes15("Claim_HEX_to_0x"),
+            bytes15("Claim_OCT_to_0x"),
             _createHexStringFromEthAddress(claimToAddr)
         );
     }
 
     /**
-     * @dev Creates a BitcoinHEX claim message from an Ethereum address
-     * @param claimToAddr Destination Eth address to credit the claimed Hearts
+     * @dev Creates a BitcoinOCT claim message from an Ethereum address
+     * @param claimToAddr Destination Eth address to credit the claimed Spades
      * @return Legacy claim message
      */
     function _createLegacyClaimMessage(address claimToAddr)
@@ -220,7 +220,7 @@ contract UTXOClaimValidation is GlobalsAndUtility {
             uint8(24),
             bytes24("Bitcoin Signed Message:\n"),
             uint8(22 + ETH_ADDRESS_HEX_LEN),
-            bytes22("Claim_BitcoinHEX_to_0x"),
+            bytes22("Claim_BitcoinOCT_to_0x"),
             _createHexStringFromEthAddress(claimToAddr)
         );
     }

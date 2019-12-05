@@ -18,7 +18,7 @@ contract GlobalsAndUtility is ERC20 {
         bytes20 indexed btcAddr,
         uint256 rawSatoshis,
         uint256 adjSatoshis,
-        uint256 claimedHearts
+        uint256 claimedSpades
     );
 
     event ClaimReferredBySelf(
@@ -27,7 +27,7 @@ contract GlobalsAndUtility is ERC20 {
         bytes20 indexed btcAddr,
         uint256 rawSatoshis,
         uint256 adjSatoshis,
-        uint256 claimedHearts
+        uint256 claimedSpades
     );
 
     event ClaimReferredByOther(
@@ -36,7 +36,7 @@ contract GlobalsAndUtility is ERC20 {
         bytes20 indexed btcAddr,
         uint256 rawSatoshis,
         uint256 adjSatoshis,
-        uint256 claimedHearts,
+        uint256 claimedSpades,
         address indexed referrerAddr
     );
 
@@ -44,7 +44,7 @@ contract GlobalsAndUtility is ERC20 {
         uint40 timestamp,
         address indexed stakerAddr,
         uint48 indexed stakeId,
-        uint256 stakedHearts,
+        uint256 stakedSpades,
         uint16 stakedDays
     );
 
@@ -81,15 +81,15 @@ contract GlobalsAndUtility is ERC20 {
     address payable internal constant TRAPPED_ETH_FLUSH_ADDR = 0x20C39E8862cB26Ac16eD0AFB37DCeE7F1BD8F153;
 
     /* ERC20 constants */
-    string public constant name = "HEX";
-    string public constant symbol = "HEX";
+    string public constant name = "OCT";
+    string public constant symbol = "OCT";
     uint8 public constant decimals = 8;
 
-    /* Hearts per Satoshi = 10,000 * 1e8 / 1e8 = 1e4 */
-    uint256 private constant HEARTS_PER_HEX = 10 ** uint256(decimals); // 1e8
-    uint256 private constant HEX_PER_BTC = 1e4;
+    /* Spades per Satoshi = 10,000 * 1e8 / 1e8 = 1e4 */
+    uint256 private constant SPADES_PER_OCT = 10 ** uint256(decimals); // 1e8
+    uint256 private constant OCT_PER_BTC = 1e4;
     uint256 private constant SATOSHIS_PER_BTC = 1e8;
-    uint256 internal constant HEARTS_PER_SATOSHI = HEARTS_PER_HEX / SATOSHIS_PER_BTC * HEX_PER_BTC;
+    uint256 internal constant SPADES_PER_SATOSHI = SPADES_PER_OCT / SATOSHIS_PER_BTC * OCT_PER_BTC;
 
     /* Time of contract launch (2019-03-04T00:00:00Z) */
     uint256 internal constant LAUNCH_TIME = 1551657600;
@@ -136,9 +136,9 @@ contract GlobalsAndUtility is ERC20 {
 
     /* Stake shares Larger Pays Better bonus constants used by calcStakeShares() */
     uint256 private constant LPB_H_BONUS_PERCENT = 10;
-    uint256 private constant LPB_H_CAP_HEX = 150 * 1e6;
-    uint256 internal constant LPB_H_CAP_HEARTS = LPB_H_CAP_HEX * HEARTS_PER_HEX;
-    uint256 internal constant LPB_H = LPB_H_CAP_HEARTS * 100 / LPB_H_BONUS_PERCENT;
+    uint256 private constant LPB_H_CAP_OCT = 150 * 1e6;
+    uint256 internal constant LPB_H_CAP_SPADES = LPB_H_CAP_OCT * SPADES_PER_OCT;
+    uint256 internal constant LPB_H = LPB_H_CAP_SPADES * 100 / LPB_H_BONUS_PERCENT;
 
     /* Hex digits used by createHexStringFromAddress() */
     bytes16 internal constant HEX_DIGITS = "0123456789abcdef";
@@ -196,7 +196,7 @@ contract GlobalsAndUtility is ERC20 {
     /* Stake expanded for memory (except _stakeId) and compact for storage */
     struct StakeCache {
         uint48 _stakeId;
-        uint256 _stakedHearts;
+        uint256 _stakedSpades;
         uint256 _stakeShares;
         uint256 _pooledDay;
         uint256 _stakedDays;
@@ -205,7 +205,7 @@ contract GlobalsAndUtility is ERC20 {
 
     struct StakeStore {
         uint48 stakeId;
-        uint80 stakedHearts;
+        uint80 stakedSpades;
         uint80 stakeShares;
         uint16 pooledDay;
         uint16 stakedDays;
@@ -236,10 +236,10 @@ contract GlobalsAndUtility is ERC20 {
         _snapshotGlobalsCache(g, gSnapshot);
 
         /* Skip launch day */
-        require(g._currentDay != 0, "HEX: Not needed on launch day");
+        require(g._currentDay != 0, "OCT: Not needed on launch day");
 
         if (beforeDay != 0) {
-            require(beforeDay <= g._currentDay, "HEX: beforeDay cannot be in the future");
+            require(beforeDay <= g._currentDay, "OCT: beforeDay cannot be in the future");
 
             _storeDailyDataBefore(g, beforeDay);
         } else {
@@ -301,8 +301,8 @@ contract GlobalsAndUtility is ERC20 {
     {
         uint256 max = offset + count;
 
-        require(offset < max, "HEX: count invalid");
-        require(max <= globals.daysStored, "HEX: offset or count invalid");
+        require(offset < max, "OCT: count invalid");
+        require(max <= globals.daysStored, "OCT: offset or count invalid");
 
         list = new uint256[](count);
 
@@ -420,10 +420,10 @@ contract GlobalsAndUtility is ERC20 {
         view
     {
         /* Ensure caller's stakeIndex is still current */
-        require(stakeIdParam == stRef.stakeId, "HEX: stakeIdParam not in stake");
+        require(stakeIdParam == stRef.stakeId, "OCT: stakeIdParam not in stake");
 
         st._stakeId = stRef.stakeId;
-        st._stakedHearts = stRef.stakedHearts;
+        st._stakedSpades = stRef.stakedSpades;
         st._stakeShares = stRef.stakeShares;
         st._pooledDay = stRef.pooledDay;
         st._stakedDays = stRef.stakedDays;
@@ -434,7 +434,7 @@ contract GlobalsAndUtility is ERC20 {
         internal
     {
         stRef.stakeId = st._stakeId;
-        stRef.stakedHearts = uint80(st._stakedHearts);
+        stRef.stakedSpades = uint80(st._stakedSpades);
         stRef.stakeShares = uint80(st._stakeShares);
         stRef.pooledDay = uint16(st._pooledDay);
         stRef.stakedDays = uint16(st._stakedDays);
@@ -444,7 +444,7 @@ contract GlobalsAndUtility is ERC20 {
     function _addStake(
         StakeStore[] storage stakeListRef,
         uint48 newStakeId,
-        uint256 newStakedHearts,
+        uint256 newStakedSpades,
         uint256 newStakeShares,
         uint256 newPooledDay,
         uint256 newStakedDays
@@ -454,7 +454,7 @@ contract GlobalsAndUtility is ERC20 {
         stakeListRef.push(
             StakeStore(
                 newStakeId,
-                uint80(newStakedHearts),
+                uint80(newStakedSpades),
                 uint80(newStakeShares),
                 uint16(newPooledDay),
                 uint16(newStakedDays),
@@ -533,7 +533,7 @@ contract GlobalsAndUtility is ERC20 {
                         the claim phase has no open stakes then there is nowhere to carry this forward, thus the
                         final remainder of the unclaimed Satoshis cannot be paid out.
                     */
-                    _splitPenaltyProceeds(g, g._unclaimedSatoshisTotal * HEARTS_PER_SATOSHI);
+                    _splitPenaltyProceeds(g, g._unclaimedSatoshisTotal * SPADES_PER_SATOSHI);
                     g._unclaimedSatoshisTotal = 0;
                 }
             }
@@ -566,7 +566,7 @@ contract GlobalsAndUtility is ERC20 {
      * @param g pre-loaded globals cache
      * @param stakeSharesParam param from stake to calculate bonuses for
      * @param day day to calculate bonuses for
-     * @return payout Hearts
+     * @return payout Spades
      */
     function _estimatePayoutRewardsDay(GlobalsCache memory g, uint256 stakeSharesParam, uint256 day)
         internal
@@ -659,7 +659,7 @@ contract GlobalsAndUtility is ERC20 {
             uint256 reward = g._unclaimedSatoshisTotal / daysRemaining;
             g._unclaimedSatoshisTotal -= reward;
 
-            reward *= HEARTS_PER_SATOSHI;
+            reward *= SPADES_PER_SATOSHI;
 
             uint256 bonus = _calcAdoptionBonus(
                 rs._payoutTotal + reward,
