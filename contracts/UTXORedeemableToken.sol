@@ -1,4 +1,4 @@
-pragma solidity ^0.5.7;
+pragma solidity 0.5.13;
 
 import "./UTXOClaimValidation.sol";
 
@@ -14,23 +14,25 @@ contract UTXORedeemableToken is UTXOClaimValidation {
      * @param claimToAddr Destination Eth address to credit Spades to
      * @param pubKeyX First  half of uncompressed ECDSA public key for the BTC address
      * @param pubKeyY Second half of uncompressed ECDSA public key for the BTC address
-     * @param addrType Type of BTC address derived from the public key
+     * @param claimFlags Claim flags specifying address and message formats
      * @param v v parameter of ECDSA signature
      * @param r r parameter of ECDSA signature
      * @param s s parameter of ECDSA signature
+     * @param autoStakeDays Number of days to auto-stake, subject to minimum auto-stake days
      * @param referrerAddr Eth address of referring user (optional; 0x0 for no referrer)
      * @return Total number of Spades credited, if successful
      */
-    function claimBtcAddress(
+    function btcAddressClaim(
         uint256 rawSatoshis,
         bytes32[] calldata proof,
         address claimToAddr,
         bytes32 pubKeyX,
         bytes32 pubKeyY,
-        uint8 addrType,
+        uint8 claimFlags,
         uint8 v,
         bytes32 r,
         bytes32 s,
+        uint256 autoStakeDays,
         address referrerAddr
     )
         external
@@ -39,17 +41,40 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         /* Sanity check */
         require(rawSatoshis <= MAX_BTC_ADDR_BALANCE_SATOSHIS, "OCT: CHK: rawSatoshis");
 
-        /* Ensure signature matches the claim message containing the destination Eth address */
-        require(
-            signatureMatchesClaim(claimToAddr, pubKeyX, pubKeyY, v, r, s),
-            "OCT: Signature mismatch"
-        );
+        /* Enforce the minimum stake time for the auto-stake from this claim */
+        require(autoStakeDays >= MIN_AUTO_STAKE_DAYS, "OCT: autoStakeDays lower than minimum");
+
+        /* Ensure signature matches the claim message containing the Eth address and claimParamHash */
+        {
+            bytes32 claimParamHash = 0;
+
+            if (claimToAddr != msg.sender) {
+                /* Claimer did not send this, so claim params must be signed */
+                claimParamHash = keccak256(
+                    abi.encodePacked(MERKLE_TREE_ROOT, autoStakeDays, referrerAddr)
+                );
+            }
+
+            require(
+                claimMessageMatchesSignature(
+                    claimToAddr,
+                    claimParamHash,
+                    pubKeyX,
+                    pubKeyY,
+                    claimFlags,
+                    v,
+                    r,
+                    s
+                ),
+                "OCT: Signature mismatch"
+            );
+        }
 
         /* Derive BTC address from public key */
-        bytes20 btcAddr = pubKeyToBtcAddress(pubKeyX, pubKeyY, addrType);
+        bytes20 btcAddr = pubKeyToBtcAddress(pubKeyX, pubKeyY, claimFlags);
 
         /* Ensure BTC address has not yet been claimed */
-        require(!claimedBtcAddresses[btcAddr], "OCT: BTC address balance already claimed");
+        require(!btcAddressClaims[btcAddr], "OCT: BTC address balance already claimed");
 
         /* Ensure BTC address is part of the Merkle tree */
         require(
@@ -58,15 +83,24 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         );
 
         /* Mark BTC address as claimed */
-        claimedBtcAddresses[btcAddr] = true;
+        btcAddressClaims[btcAddr] = true;
 
-        return _claimSatoshisSync(rawSatoshis, claimToAddr, btcAddr, referrerAddr);
+        return _satoshisClaimSync(
+            rawSatoshis,
+            claimToAddr,
+            btcAddr,
+            claimFlags,
+            autoStakeDays,
+            referrerAddr
+        );
     }
 
-    function _claimSatoshisSync(
+    function _satoshisClaimSync(
         uint256 rawSatoshis,
         address claimToAddr,
         bytes20 btcAddr,
+        uint8 claimFlags,
+        uint256 autoStakeDays,
         address referrerAddr
     )
         private
@@ -74,40 +108,51 @@ contract UTXORedeemableToken is UTXOClaimValidation {
     {
         GlobalsCache memory g;
         GlobalsCache memory gSnapshot;
-        _loadGlobals(g);
-        _snapshotGlobalsCache(g, gSnapshot);
+        _globalsLoad(g, gSnapshot);
 
-        totalClaimedSpades = _claimSatoshis(g, rawSatoshis, claimToAddr, btcAddr, referrerAddr);
+        totalClaimedSpades = _satoshisClaim(
+            g,
+            rawSatoshis,
+            claimToAddr,
+            btcAddr,
+            claimFlags,
+            autoStakeDays,
+            referrerAddr
+        );
 
-        _syncGlobals1(g, gSnapshot);
-        _saveGlobals2(g);
+        _globalsSync(g, gSnapshot);
 
         return totalClaimedSpades;
     }
 
     /**
      * @dev Credit an Eth address with the Spades value of a raw Satoshis balance
+     * @param g Cache of stored globals
      * @param rawSatoshis Raw BTC address balance in Satoshis
      * @param claimToAddr Destination Eth address for the claimed Spades to be sent
      * @param btcAddr Bitcoin address (binary; no base58-check encoding)
-     * @param referrerAddr (optional, send 0x0 for no referrer) Eth address of referring user
+     * @param autoStakeDays Number of days to auto-stake, subject to minimum auto-stake days
+     * @param referrerAddr Eth address of referring user (optional; 0x0 for no referrer)
      * @return Total number of Spades credited, if successful
      */
-    function _claimSatoshis(
+    function _satoshisClaim(
         GlobalsCache memory g,
         uint256 rawSatoshis,
         address claimToAddr,
         bytes20 btcAddr,
+        uint8 claimFlags,
+        uint256 autoStakeDays,
         address referrerAddr
     )
         private
         returns (uint256 totalClaimedSpades)
     {
-        /* Disable claims after the claim phase is over */
-        require(g._currentDay < CLAIM_PHASE_DAYS, "OCT: Claim phase has ended");
+        /* Allowed only during the claim phase */
+        require(g._currentDay >= CLAIM_PHASE_START_DAY, "OCT: Claim phase has not yet started");
+        require(g._currentDay < CLAIM_PHASE_END_DAY, "OCT: Claim phase has ended");
 
         /* Check if log data needs to be updated */
-        _storeDailyDataBefore(g, g._currentDay);
+        _dailyDataUpdateAuto(g);
 
         /* Sanity check */
         require(
@@ -126,6 +171,7 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         totalClaimedSpades = _remitBonuses(
             claimToAddr,
             btcAddr,
+            claimFlags,
             rawSatoshis,
             adjSatoshis,
             claimedSpades,
@@ -133,8 +179,12 @@ contract UTXORedeemableToken is UTXOClaimValidation {
             referrerAddr
         );
 
-        /* Claim pre-minted Spades from contract balance */
-        _transfer(address(this), claimToAddr, claimedSpades);
+        /* Auto-stake a percentage of the successful claim */
+        uint256 autoStakeSpades = totalClaimedSpades * AUTO_STAKE_CLAIM_PERCENT / 100;
+        _stakeStart(g, autoStakeSpades, autoStakeDays, true);
+
+        /* Mint remaining claimed Spades to claim address */
+        _mint(claimToAddr, totalClaimedSpades - autoStakeSpades);
 
         return totalClaimedSpades;
     }
@@ -142,6 +192,7 @@ contract UTXORedeemableToken is UTXOClaimValidation {
     function _remitBonuses(
         address claimToAddr,
         bytes20 btcAddr,
+        uint8 claimFlags,
         uint256 rawSatoshis,
         uint256 adjSatoshis,
         uint256 claimedSpades,
@@ -157,61 +208,96 @@ contract UTXORedeemableToken is UTXOClaimValidation {
 
         if (referrerAddr == address(0)) {
             /* No referrer */
-            emit Claim(
-                uint40(block.timestamp),
+            _emitClaim(
                 claimToAddr,
                 btcAddr,
+                claimFlags,
                 rawSatoshis,
                 adjSatoshis,
-                totalClaimedSpades
+                totalClaimedSpades,
+                referrerAddr
             );
         } else {
-            /*
-                Of total claimed Spades, referral bonus of 10% to claimer,
-                and referrer bonus of 20% to referrer.
-            */
+            /* Referral bonus of 10% of total claimed Spades to claimer */
             uint256 referralBonusSpades = totalClaimedSpades / 10;
-            uint256 referrerBonusSpades = referralBonusSpades * 2;
-            uint256 combinedBonusSpades = referralBonusSpades + referrerBonusSpades;
 
-            originBonusSpades += combinedBonusSpades;
+            totalClaimedSpades += referralBonusSpades;
+
+            /* Then a cumulative referrer bonus of 20% to referrer */
+            uint256 referrerBonusSpades = totalClaimedSpades / 5;
+
+            originBonusSpades += referralBonusSpades + referrerBonusSpades;
 
             if (referrerAddr == claimToAddr) {
-                /* Self-referred is combined (referral + referrer) */
-                claimBonusSpades += combinedBonusSpades;
-                totalClaimedSpades += combinedBonusSpades;
-
-                emit ClaimReferredBySelf(
-                    uint40(block.timestamp),
+                /* Self-referred */
+                totalClaimedSpades += referrerBonusSpades;
+                _emitClaim(
                     claimToAddr,
                     btcAddr,
-                    rawSatoshis,
-                    adjSatoshis,
-                    totalClaimedSpades
-                );
-            } else {
-                /* Referred by different address */
-                claimBonusSpades += referralBonusSpades;
-                totalClaimedSpades += referralBonusSpades;
-
-                emit ClaimReferredByOther(
-                    uint40(block.timestamp),
-                    claimToAddr,
-                    btcAddr,
+                    claimFlags,
                     rawSatoshis,
                     adjSatoshis,
                     totalClaimedSpades,
                     referrerAddr
                 );
-
+            } else {
+                /* Referred by different address */
+                _emitClaim(
+                    claimToAddr,
+                    btcAddr,
+                    claimFlags,
+                    rawSatoshis,
+                    adjSatoshis,
+                    totalClaimedSpades,
+                    referrerAddr
+                );
                 _mint(referrerAddr, referrerBonusSpades);
             }
         }
 
         _mint(ORIGIN_ADDR, originBonusSpades);
-        _mint(claimToAddr, claimBonusSpades);
 
         return totalClaimedSpades;
+    }
+
+    function _emitClaim(
+        address claimToAddr,
+        bytes20 btcAddr,
+        uint8 claimFlags,
+        uint256 rawSatoshis,
+        uint256 adjSatoshis,
+        uint256 claimedSpades,
+        address referrerAddr
+    )
+        private
+    {
+        emit Claim( // (auto-generated event)
+            uint256(uint40(block.timestamp))
+                | (uint256(uint56(rawSatoshis)) << 40)
+                | (uint256(uint56(adjSatoshis)) << 96)
+                | (uint256(claimFlags) << 152)
+                | (uint256(uint72(claimedSpades)) << 160),
+            uint256(uint160(msg.sender)),
+            btcAddr,
+            claimToAddr,
+            referrerAddr
+        );
+
+        if (claimToAddr == msg.sender) {
+            return;
+        }
+
+        emit ClaimAssist( // (auto-generated event)
+            uint256(uint40(block.timestamp))
+                | (uint256(uint160(btcAddr)) << 40)
+                | (uint256(uint56(rawSatoshis)) << 200),
+            uint256(uint56(adjSatoshis))
+                | (uint256(uint160(claimToAddr)) << 56)
+                | (uint256(claimFlags) << 216),
+            uint256(uint72(claimedSpades))
+                | (uint256(uint160(referrerAddr)) << 72),
+            msg.sender
+        );
     }
 
     function _calcClaimValues(GlobalsCache memory g, uint256 rawSatoshis)
@@ -227,18 +313,15 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         );
         g._claimedSatoshisTotal += adjSatoshis;
 
-        uint256 phaseDaysRemaining = CLAIM_REWARD_DAYS - g._currentDay;
-        uint256 rewardDaysRemaining = phaseDaysRemaining < CLAIM_REWARD_DAYS
-            ? phaseDaysRemaining + 1
-            : CLAIM_REWARD_DAYS;
+        uint256 daysRemaining = CLAIM_PHASE_END_DAY - g._currentDay;
 
         /* Apply late-claim reduction */
-        adjSatoshis = _adjustLateClaim(adjSatoshis, rewardDaysRemaining);
+        adjSatoshis = _adjustLateClaim(adjSatoshis, daysRemaining);
         g._unclaimedSatoshisTotal -= adjSatoshis;
 
         /* Convert to Spades and calculate speed bonus */
         claimedSpades = adjSatoshis * SPADES_PER_SATOSHI;
-        claimBonusSpades = _calcSpeedBonus(claimedSpades, phaseDaysRemaining);
+        claimBonusSpades = _calcSpeedBonus(claimedSpades, daysRemaining);
 
         return (adjSatoshis, claimedSpades, claimBonusSpades);
     }
@@ -294,7 +377,7 @@ contract UTXORedeemableToken is UTXOClaimValidation {
     /**
      * @dev Apply late-claim adjustment to scale claim to zero by end of claim phase
      * @param adjSatoshis Adjusted BTC address balance in Satoshis (after Silly Whale)
-     * @param daysRemaining Number of days remaining in claim phase
+     * @param daysRemaining Number of reward days remaining in claim phase
      * @return Adjusted BTC address balance in Satoshis (after Silly Whale and Late-Claim)
      */
     function _adjustLateClaim(uint256 adjSatoshis, uint256 daysRemaining)
@@ -303,18 +386,18 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         returns (uint256)
     {
         /*
-            Only valid from 0 to CLAIM_REWARD_DAYS, and only used during that time.
+            Only valid from CLAIM_PHASE_DAYS to 1, and only used during that time.
 
-            adjustedSat = sat * (daysRemaining / CLAIM_REWARD_DAYS) * 100%
-                        = sat *  daysRemaining / CLAIM_REWARD_DAYS
+            adjustedSat = sat * (daysRemaining / CLAIM_PHASE_DAYS) * 100%
+                        = sat *  daysRemaining / CLAIM_PHASE_DAYS
         */
-        return adjSatoshis * daysRemaining / CLAIM_REWARD_DAYS;
+        return adjSatoshis * daysRemaining / CLAIM_PHASE_DAYS;
     }
 
     /**
      * @dev Calculates speed bonus for claiming earlier in the claim phase
      * @param claimedSpades Spades claimed from adjusted BTC address balance Satoshis
-     * @param daysRemaining Number of days remaining in claim phase
+     * @param daysRemaining Number of claim days remaining in claim phase
      * @return Speed bonus in Spades
      */
     function _calcSpeedBonus(uint256 claimedSpades, uint256 daysRemaining)
@@ -323,14 +406,14 @@ contract UTXORedeemableToken is UTXOClaimValidation {
         returns (uint256)
     {
         /*
-            Only valid from 0 to CLAIM_REWARD_DAYS days, and only used during that time.
+            Only valid from CLAIM_PHASE_DAYS to 1, and only used during that time.
             Speed bonus is 20% ... 0% inclusive.
 
-            bonusSpades = claimedSpades * (daysRemaining  /  CLAIM_REWARD_DAYS) * 20%
-                        = claimedSpades * (daysRemaining  /  CLAIM_REWARD_DAYS) * 20/100
-                        = claimedSpades * (daysRemaining  /  CLAIM_REWARD_DAYS) / 5
-                        = claimedSpades *  daysRemaining  / (CLAIM_REWARD_DAYS  * 5)
+            bonusSpades = claimedSpades  * ((daysRemaining - 1)  /  (CLAIM_PHASE_DAYS - 1)) * 20%
+                        = claimedSpades  * ((daysRemaining - 1)  /  (CLAIM_PHASE_DAYS - 1)) * 20/100
+                        = claimedSpades  * ((daysRemaining - 1)  /  (CLAIM_PHASE_DAYS - 1)) / 5
+                        = claimedSpades  *  (daysRemaining - 1)  / ((CLAIM_PHASE_DAYS - 1)  * 5)
         */
-        return claimedSpades * daysRemaining / (CLAIM_REWARD_DAYS * 5);
+        return claimedSpades * (daysRemaining - 1) / ((CLAIM_PHASE_DAYS - 1) * 5);
     }
 }

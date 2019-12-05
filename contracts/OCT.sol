@@ -1,35 +1,25 @@
-pragma solidity ^0.5.7;
+pragma solidity 0.5.13;
 
-import "./StakeableToken.sol";
+import "./TransformableToken.sol";
 
 
-contract OCT is StakeableToken {
+contract OCT is TransformableToken {
     constructor()
         public
     {
+        /* Initialize global shareRate to 1 */
+        globals.shareRate = uint40(1 * SHARE_RATE_SCALE);
+
+        /* Initialize dailyDataCount to skip pre-claim period */
+        globals.dailyDataCount = uint16(PRE_CLAIM_DAYS);
+
         /* Add all Satoshis from UTXO snapshot to contract */
-        globals.unclaimedSatoshisTotal = uint64(FULL_SATOSHIS_TOTAL);
-        _mint(address(this), FULL_SATOSHIS_TOTAL * SPADES_PER_SATOSHI);
+        globals.claimStats = _claimStatsEncode(
+            0, // _claimedBtcAddrCount
+            0, // _claimedSatoshisTotal
+            FULL_SATOSHIS_TOTAL // _unclaimedSatoshisTotal
+        );
     }
 
-    /**
-     * @dev PUBLIC FACING: Contract fallback function
-     */
-    function()
-        external
-        payable
-    {
-        /* Empty */
-    }
-
-    /**
-     * @dev PUBLIC FACING: Release any ETH that has been sent to the contract
-     */
-    function flushTrappedEth()
-        external
-    {
-        require(address(this).balance != 0, "OCT: No trapped ETH");
-
-        TRAPPED_ETH_FLUSH_ADDR.transfer(address(this).balance);
-    }
+    function() external payable {}
 }

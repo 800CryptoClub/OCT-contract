@@ -1,84 +1,161 @@
-pragma solidity ^0.5.7;
+pragma solidity 0.5.13;
 
 import "../node_modules/openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
 
 contract GlobalsAndUtility is ERC20 {
-    /* Define events */
-    event DailyDataUpdate(
-        uint40 timestamp,
-        uint16 daysStoredAdded,
-        uint16 daysStoredTotal,
-        address indexed updaterAddr
-    );
+    /*  XfLobbyEnter      (auto-generated event)
 
-    event Claim(
-        uint40 timestamp,
-        address indexed claimToAddr,
-        bytes20 indexed btcAddr,
-        uint256 rawSatoshis,
-        uint256 adjSatoshis,
-        uint256 claimedSpades
-    );
-
-    event ClaimReferredBySelf(
-        uint40 timestamp,
-        address indexed claimToAddr,
-        bytes20 indexed btcAddr,
-        uint256 rawSatoshis,
-        uint256 adjSatoshis,
-        uint256 claimedSpades
-    );
-
-    event ClaimReferredByOther(
-        uint40 timestamp,
-        address indexed claimToAddr,
-        bytes20 indexed btcAddr,
-        uint256 rawSatoshis,
-        uint256 adjSatoshis,
-        uint256 claimedSpades,
+        uint40            timestamp       -->  data0 [ 39:  0]
+        address  indexed  memberAddr
+        uint256  indexed  entryId
+        uint96            rawAmount       -->  data0 [135: 40]
+        address  indexed  referrerAddr
+    */
+    event XfLobbyEnter(
+        uint256 data0,
+        address indexed memberAddr,
+        uint256 indexed entryId,
         address indexed referrerAddr
     );
 
-    event StartStake(
-        uint40 timestamp,
-        address indexed stakerAddr,
-        uint48 indexed stakeId,
-        uint256 stakedSpades,
-        uint16 stakedDays
+    /*  XfLobbyExit       (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        address  indexed  memberAddr
+        uint256  indexed  entryId
+        uint72            xfAmount        -->  data0 [111: 40]
+        address  indexed  referrerAddr
+    */
+    event XfLobbyExit(
+        uint256 data0,
+        address indexed memberAddr,
+        uint256 indexed entryId,
+        address indexed referrerAddr
     );
 
-    event GoodAccountingBySelf(
-        uint40 timestamp,
-        address indexed stakerAddr,
-        uint48 indexed stakeId,
-        uint256 payout,
-        uint256 penalty
+    /*  DailyDataUpdate   (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        uint16            beginDay        -->  data0 [ 55: 40]
+        uint16            endDay          -->  data0 [ 71: 56]
+        bool              isAutoUpdate    -->  data0 [ 79: 72]
+        address  indexed  updaterAddr
+    */
+    event DailyDataUpdate(
+        uint256 data0,
+        address indexed updaterAddr
     );
 
-    event GoodAccountingByOther(
-        uint40 timestamp,
-        address indexed stakerAddr,
-        uint48 indexed stakeId,
-        uint256 payout,
-        uint256 penalty,
-        address indexed otherAddr
+    /*  Claim             (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        bytes20  indexed  btcAddr
+        uint56            rawSatoshis     -->  data0 [ 95: 40]
+        uint56            adjSatoshis     -->  data0 [151: 96]
+        address  indexed  claimToAddr
+        uint8             claimFlags      -->  data0 [159:152]
+        uint72            claimedSpades   -->  data0 [231:160]
+        address  indexed  referrerAddr
+        address           senderAddr      -->  data1 [159:  0]
+    */
+    event Claim(
+        uint256 data0,
+        uint256 data1,
+        bytes20 indexed btcAddr,
+        address indexed claimToAddr,
+        address indexed referrerAddr
     );
 
-    event EndStake(
-        uint40 timestamp,
+    /*  ClaimAssist       (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        bytes20           btcAddr         -->  data0 [199: 40]
+        uint56            rawSatoshis     -->  data0 [255:200]
+        uint56            adjSatoshis     -->  data1 [ 55:  0]
+        address           claimToAddr     -->  data1 [215: 56]
+        uint8             claimFlags      -->  data1 [223:216]
+        uint72            claimedSpades   -->  data2 [ 71:  0]
+        address           referrerAddr    -->  data2 [231: 72]
+        address  indexed  senderAddr
+    */
+    event ClaimAssist(
+        uint256 data0,
+        uint256 data1,
+        uint256 data2,
+        address indexed senderAddr
+    );
+
+    /*  StakeStart        (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        address  indexed  stakerAddr
+        uint40   indexed  stakeId
+        uint72            stakedSpades    -->  data0 [111: 40]
+        uint72            stakeShares     -->  data0 [183:112]
+        uint16            stakedDays      -->  data0 [199:184]
+        bool              isAutoStake     -->  data0 [207:200]
+    */
+    event StakeStart(
+        uint256 data0,
         address indexed stakerAddr,
-        uint48 indexed stakeId,
-        uint256 payout,
-        uint256 penalty,
-        uint16 servedDays
+        uint40 indexed stakeId
+    );
+
+    /*  StakeGoodAccounting(auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        address  indexed  stakerAddr
+        uint40   indexed  stakeId
+        uint72            stakedSpades    -->  data0 [111: 40]
+        uint72            stakeShares     -->  data0 [183:112]
+        uint72            payout          -->  data0 [255:184]
+        uint72            penalty         -->  data1 [ 71:  0]
+        address  indexed  senderAddr
+    */
+    event StakeGoodAccounting(
+        uint256 data0,
+        uint256 data1,
+        address indexed stakerAddr,
+        uint40 indexed stakeId,
+        address indexed senderAddr
+    );
+
+    /*  StakeEnd          (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        address  indexed  stakerAddr
+        uint40   indexed  stakeId
+        uint72            stakedSpades    -->  data0 [111: 40]
+        uint72            stakeShares     -->  data0 [183:112]
+        uint72            payout          -->  data0 [255:184]
+        uint72            penalty         -->  data1 [ 71:  0]
+        uint16            servedDays      -->  data1 [ 87: 72]
+        bool              prevUnlocked    -->  data1 [ 95: 88]
+    */
+    event StakeEnd(
+        uint256 data0,
+        uint256 data1,
+        address indexed stakerAddr,
+        uint40 indexed stakeId
+    );
+
+    /*  ShareRateChange   (auto-generated event)
+
+        uint40            timestamp       -->  data0 [ 39:  0]
+        uint40            shareRate       -->  data0 [ 79: 40]
+        uint40   indexed  stakeId
+    */
+    event ShareRateChange(
+        uint256 data0,
+        uint40 indexed stakeId
     );
 
     /* Origin address */
-    address internal constant ORIGIN_ADDR = 0x20C39E8862cB26Ac16eD0AFB37DCeE7F1BD8F153;
+    address internal constant ORIGIN_ADDR = 0x9A6a414D6F3497c05E3b1De90520765fA1E07c03;
 
-    /* Trapped ETH flush address */
-    address payable internal constant TRAPPED_ETH_FLUSH_ADDR = 0x20C39E8862cB26Ac16eD0AFB37DCeE7F1BD8F153;
+    /* Flush address */
+    address payable internal constant FLUSH_ADDR = 0xDEC9f2793e3c17cd26eeFb21C4762fA5128E0399;
 
     /* ERC20 constants */
     string public constant name = "OCT";
@@ -91,34 +168,72 @@ contract GlobalsAndUtility is ERC20 {
     uint256 private constant SATOSHIS_PER_BTC = 1e8;
     uint256 internal constant SPADES_PER_SATOSHI = SPADES_PER_OCT / SATOSHIS_PER_BTC * OCT_PER_BTC;
 
-    /* Time of contract launch (2019-03-04T00:00:00Z) */
-    uint256 internal constant LAUNCH_TIME = 1551657600;
+    /* Time of contract launch (2019-12-03T00:00:00Z) */
+    uint256 internal constant LAUNCH_TIME = 1575331200;
 
-    /* Time of end of claim phase */
-    uint256 private constant CLAIM_REWARD_WEEKS = 50;
-    uint256 internal constant CLAIM_REWARD_DAYS = CLAIM_REWARD_WEEKS * 7;
-    uint256 internal constant CLAIM_PHASE_DAYS = CLAIM_REWARD_DAYS + 1; // Skip launch day
+    /* Size of a Spades or Shares uint */
+    uint256 internal constant SPADE_UINT_SIZE = 72;
+
+    /* Size of a transform lobby entry index uint */
+    uint256 internal constant XF_LOBBY_ENTRY_INDEX_SIZE = 40;
+    uint256 internal constant XF_LOBBY_ENTRY_INDEX_MASK = (1 << XF_LOBBY_ENTRY_INDEX_SIZE) - 1;
+
+    /* Seed for WAAS Lobby */
+    uint256 internal constant WAAS_LOBBY_SEED_OCT = 1e9;
+    uint256 internal constant WAAS_LOBBY_SEED_SPADES = WAAS_LOBBY_SEED_OCT * SPADES_PER_OCT;
+
+    /* Start of claim phase */
+    uint256 internal constant PRE_CLAIM_DAYS = 1;
+    uint256 internal constant CLAIM_PHASE_START_DAY = PRE_CLAIM_DAYS;
+
+    /* Length of claim phase */
+    uint256 private constant CLAIM_PHASE_WEEKS = 50;
+    uint256 internal constant CLAIM_PHASE_DAYS = CLAIM_PHASE_WEEKS * 7;
+
+    /* End of claim phase */
+    uint256 internal constant CLAIM_PHASE_END_DAY = CLAIM_PHASE_START_DAY + CLAIM_PHASE_DAYS;
+
+    /* Number of words to hold 1 bit for each transform lobby day */
+    uint256 internal constant XF_LOBBY_DAY_WORDS = (CLAIM_PHASE_END_DAY + 255) >> 8;
+
+    /* BigPayDay */
+    uint256 internal constant BIG_PAY_DAY = CLAIM_PHASE_END_DAY + 1;
 
     /* Root hash of the UTXO Merkle tree */
-    bytes32 internal constant MERKLE_TREE_ROOT = 0x6c78104d5710f8ba6e080ada5997c3d95a3aff00041f78bbfae0816d6beaced8;
+    bytes32 internal constant MERKLE_TREE_ROOT = 0x4e831acb4223b66de3b3d2e54a2edeefb0de3d7916e2886a4b134d9764d41bec;
+
+    /* Size of a Satoshi claim uint in a Merkle leaf */
+    uint256 internal constant MERKLE_LEAF_SATOSHI_SIZE = 45;
+
+    /* Zero-fill between BTC address and Satoshis in a Merkle leaf */
+    uint256 internal constant MERKLE_LEAF_FILL_SIZE = 256 - 160 - MERKLE_LEAF_SATOSHI_SIZE;
+    uint256 internal constant MERKLE_LEAF_FILL_BASE = (1 << MERKLE_LEAF_FILL_SIZE) - 1;
+    uint256 internal constant MERKLE_LEAF_FILL_MASK = MERKLE_LEAF_FILL_BASE << MERKLE_LEAF_SATOSHI_SIZE;
+
+    /* Size of a Satoshi total uint */
+    uint256 internal constant SATOSHI_UINT_SIZE = 51;
+    uint256 internal constant SATOSHI_UINT_MASK = (1 << SATOSHI_UINT_SIZE) - 1;
 
     /* Total Satoshis from all BTC addresses in UTXO snapshot */
-    uint256 internal constant FULL_SATOSHIS_TOTAL = 53183860816766;
+    uint256 internal constant FULL_SATOSHIS_TOTAL = 1807766732160668;
 
     /* Total Satoshis from supported BTC addresses in UTXO snapshot after applying Silly Whale */
-    uint256 internal constant CLAIMABLE_SATOSHIS_TOTAL = 21281768913380;
+    uint256 internal constant CLAIMABLE_SATOSHIS_TOTAL = 910087996911001;
 
     /* Number of claimable BTC addresses in UTXO snapshot */
-    uint256 internal constant CLAIMABLE_BTC_ADDR_COUNT = 1000;
+    uint256 internal constant CLAIMABLE_BTC_ADDR_COUNT = 27997742;
 
     /* Largest BTC address Satoshis balance in UTXO snapshot (sanity check) */
-    uint256 internal constant MAX_BTC_ADDR_BALANCE_SATOSHIS = 988025376134;
+    uint256 internal constant MAX_BTC_ADDR_BALANCE_SATOSHIS = 25550214098481;
+
+    /* Percentage of total claimed Spades that will be auto-staked from a claim */
+    uint256 internal constant AUTO_STAKE_CLAIM_PERCENT = 90;
 
     /* Stake timing parameters */
     uint256 internal constant MIN_STAKE_DAYS = 1;
+    uint256 internal constant MIN_AUTO_STAKE_DAYS = 350;
 
-    uint256 private constant MAX_STAKE_WEEKS = 50 * 52; // Approx 50 years
-    uint256 internal constant MAX_STAKE_DAYS = MAX_STAKE_WEEKS * 7;
+    uint256 internal constant MAX_STAKE_DAYS = 5555; // Approx 15 years
 
     uint256 internal constant EARLY_PENALTY_MIN_DAYS = 90;
 
@@ -128,38 +243,58 @@ contract GlobalsAndUtility is ERC20 {
     uint256 private constant LATE_PENALTY_SCALE_WEEKS = 100;
     uint256 internal constant LATE_PENALTY_SCALE_DAYS = LATE_PENALTY_SCALE_WEEKS * 7;
 
-    /* Stake shares Longer Pays Better bonus constants used by calcStakeShares() */
-    uint256 private constant LPB_D_BONUS_PERCENT = 20;
-    uint256 private constant LPB_D_BONUS_CAP_PERCENT = 200;
-    uint256 internal constant LPB_D = 364 * 100 / LPB_D_BONUS_PERCENT;
-    uint256 internal constant LPB_D_CAP_DAYS = LPB_D * LPB_D_BONUS_CAP_PERCENT / 100;
+    /* Stake shares Longer Pays Better bonus constants used by _stakeStartBonusSpades() */
+    uint256 private constant LPB_BONUS_PERCENT = 20;
+    uint256 private constant LPB_BONUS_MAX_PERCENT = 200;
+    uint256 internal constant LPB = 364 * 100 / LPB_BONUS_PERCENT;
+    uint256 internal constant LPB_MAX_DAYS = LPB * LPB_BONUS_MAX_PERCENT / 100;
 
-    /* Stake shares Larger Pays Better bonus constants used by calcStakeShares() */
-    uint256 private constant LPB_H_BONUS_PERCENT = 10;
-    uint256 private constant LPB_H_CAP_OCT = 150 * 1e6;
-    uint256 internal constant LPB_H_CAP_SPADES = LPB_H_CAP_OCT * SPADES_PER_OCT;
-    uint256 internal constant LPB_H = LPB_H_CAP_SPADES * 100 / LPB_H_BONUS_PERCENT;
+    /* Stake shares Bigger Pays Better bonus constants used by _stakeStartBonusSpades() */
+    uint256 private constant BPB_BONUS_PERCENT = 10;
+    uint256 private constant BPB_MAX_OCT = 150 * 1e6;
+    uint256 internal constant BPB_MAX_SPADES = BPB_MAX_OCT * SPADES_PER_OCT;
+    uint256 internal constant BPB = BPB_MAX_SPADES * 100 / BPB_BONUS_PERCENT;
 
-    /* Hex digits used by createHexStringFromAddress() */
+    /* Share rate is scaled to increase precision */
+    uint256 internal constant SHARE_RATE_SCALE = 1e5;
+
+    /* Share rate max (after scaling) */
+    uint256 internal constant SHARE_RATE_UINT_SIZE = 40;
+    uint256 internal constant SHARE_RATE_MAX = (1 << SHARE_RATE_UINT_SIZE) - 1;
+
+    /* Constants for preparing the claim message text */
+    uint8 internal constant ETH_ADDRESS_BYTE_LEN = 20;
+    uint8 internal constant ETH_ADDRESS_HEX_LEN = ETH_ADDRESS_BYTE_LEN * 2;
+
+    uint8 internal constant CLAIM_PARAM_HASH_BYTE_LEN = 12;
+    uint8 internal constant CLAIM_PARAM_HASH_HEX_LEN = CLAIM_PARAM_HASH_BYTE_LEN * 2;
+
+    uint8 internal constant BITCOIN_SIG_PREFIX_LEN = 24;
+    bytes24 internal constant BITCOIN_SIG_PREFIX_STR = "Bitcoin Signed Message:\n";
+
+    bytes internal constant STD_CLAIM_PREFIX_STR = "Claim_OCT_to_0x";
+    bytes internal constant OLD_CLAIM_PREFIX_STR = "Claim_BitcoinOCT_to_0x";
+
     bytes16 internal constant HEX_DIGITS = "0123456789abcdef";
-    uint256 internal constant ETH_ADDRESS_BYTE_LEN = 20;
-    uint256 internal constant ETH_ADDRESS_HEX_LEN = ETH_ADDRESS_BYTE_LEN * 2;
 
-    /* BTC address types supported for claiming. Enums do not allow revert reasons */
-    uint8 internal constant BTC_ADDR_TYPE_P2PKH_UNCOMPRESSED = 0;
-    uint8 internal constant BTC_ADDR_TYPE_P2PKH_COMPRESSED = 1;
-    uint8 internal constant BTC_ADDR_TYPE_P2WPKH_IN_P2SH = 2;
-    uint8 internal constant BTC_ADDR_TYPE_COUNT = 3;
+    /* Claim flags passed to btcAddressClaim()  */
+    uint8 internal constant CLAIM_FLAG_MSG_PREFIX_OLD = 1 << 0;
+    uint8 internal constant CLAIM_FLAG_BTC_ADDR_COMPRESSED = 1 << 1;
+    uint8 internal constant CLAIM_FLAG_BTC_ADDR_P2WPKH_IN_P2SH = 1 << 2;
+    uint8 internal constant CLAIM_FLAG_BTC_ADDR_BECH32 = 1 << 3;
+    uint8 internal constant CLAIM_FLAG_ETH_ADDR_LOWERCASE = 1 << 4;
 
     /* Globals expanded for memory (except _latestStakeId) and compact for storage */
     struct GlobalsCache {
         // 1
-        uint256 _daysStored;
-        uint256 _stakeSharesTotal;
+        uint256 _lockedSpadesTotal;
         uint256 _nextStakeSharesTotal;
-        uint48 _latestStakeId;
+        uint256 _shareRate;
+        uint256 _stakePenaltyTotal;
         // 2
-        uint256 _stakePenaltyPool;
+        uint256 _dailyDataCount;
+        uint256 _stakeSharesTotal;
+        uint40 _latestStakeId;
         uint256 _unclaimedSatoshisTotal;
         uint256 _claimedSatoshisTotal;
         uint256 _claimedBtcAddrCount;
@@ -169,99 +304,130 @@ contract GlobalsAndUtility is ERC20 {
 
     struct GlobalsStore {
         // 1
-        uint16 daysStored;
-        uint80 stakeSharesTotal;
-        uint80 nextStakeSharesTotal;
-        uint48 latestStakeId;
+        uint72 lockedSpadesTotal;
+        uint72 nextStakeSharesTotal;
+        uint40 shareRate;
+        uint72 stakePenaltyTotal;
         // 2
-        uint80 stakePenaltyPool;
-        uint64 unclaimedSatoshisTotal;
-        uint64 claimedSatoshisTotal;
-        uint32 claimedBtcAddrCount;
+        uint16 dailyDataCount;
+        uint72 stakeSharesTotal;
+        uint40 latestStakeId;
+        uint128 claimStats;
     }
 
     GlobalsStore public globals;
 
-    /* Claimed BTC addresses. */
-    mapping(bytes20 => bool) public claimedBtcAddresses;
+    /* Claimed BTC addresses */
+    mapping(bytes20 => bool) public btcAddressClaims;
 
-    /* Period data */
+    /* Daily data */
     struct DailyDataStore {
-        uint80 dayPayoutTotal;
-        uint80 dayStakeSharesTotal;
+        uint72 dayPayoutTotal;
+        uint72 dayStakeSharesTotal;
+        uint56 dayUnclaimedSatoshisTotal;
     }
 
     mapping(uint256 => DailyDataStore) public dailyData;
 
     /* Stake expanded for memory (except _stakeId) and compact for storage */
     struct StakeCache {
-        uint48 _stakeId;
+        uint40 _stakeId;
         uint256 _stakedSpades;
         uint256 _stakeShares;
-        uint256 _pooledDay;
+        uint256 _lockedDay;
         uint256 _stakedDays;
-        uint256 _unpooledDay;
+        uint256 _unlockedDay;
+        bool _isAutoStake;
     }
 
     struct StakeStore {
-        uint48 stakeId;
-        uint80 stakedSpades;
-        uint80 stakeShares;
-        uint16 pooledDay;
+        uint40 stakeId;
+        uint72 stakedSpades;
+        uint72 stakeShares;
+        uint16 lockedDay;
         uint16 stakedDays;
-        uint16 unpooledDay;
+        uint16 unlockedDay;
+        bool isAutoStake;
     }
 
-    mapping(address => StakeStore[]) public staked;
+    mapping(address => StakeStore[]) public stakeLists;
 
     /* Temporary state for calculating daily rounds */
-    struct RoundState {
-        uint256 _totalSupplyCached;
-        uint256 _mintContractBatch;
+    struct DailyRoundState {
+        uint256 _allocSupplyCached;
         uint256 _mintOriginBatch;
         uint256 _payoutTotal;
     }
+
+    struct XfLobbyEntryStore {
+        uint96 rawAmount;
+        address referrerAddr;
+    }
+
+    struct XfLobbyQueueStore {
+        uint40 headIndex;
+        uint40 tailIndex;
+        mapping(uint256 => XfLobbyEntryStore) entries;
+    }
+
+    mapping(uint256 => uint256) public xfLobby;
+    mapping(uint256 => mapping(address => XfLobbyQueueStore)) public xfLobbyMembers;
 
     /**
      * @dev PUBLIC FACING: Optionally update daily data for a smaller
      * range to reduce gas cost for a subsequent operation
      * @param beforeDay Only update days before this day number (optional; 0 for current day)
      */
-    function storeDailyDataBefore(uint256 beforeDay)
+    function dailyDataUpdate(uint256 beforeDay)
         external
     {
         GlobalsCache memory g;
         GlobalsCache memory gSnapshot;
-        _loadGlobals(g);
-        _snapshotGlobalsCache(g, gSnapshot);
+        _globalsLoad(g, gSnapshot);
 
-        /* Skip launch day */
-        require(g._currentDay != 0, "OCT: Not needed on launch day");
+        /* Skip pre-claim period */
+        require(g._currentDay > CLAIM_PHASE_START_DAY, "OCT: Too early");
 
         if (beforeDay != 0) {
             require(beforeDay <= g._currentDay, "OCT: beforeDay cannot be in the future");
 
-            _storeDailyDataBefore(g, beforeDay);
+            _dailyDataUpdate(g, beforeDay, false);
         } else {
-            /* Default to current day */
-            _storeDailyDataBefore(g, g._currentDay);
+            /* Default to updating before current day */
+            _dailyDataUpdate(g, g._currentDay, false);
         }
 
-        _syncGlobals1(g, gSnapshot);
-        _syncGlobals2(g, gSnapshot);
+        _globalsSync(g, gSnapshot);
     }
 
     /**
-     * @dev PUBLIC FACING: Return the total supply excluding staked and holding pools (true supply)
-     * @return True Supply
+     * @dev PUBLIC FACING: External helper to return multiple values of daily data with
+     * a single call. Ugly implementation due to limitations of the standard ABI encoder.
+     * @param beginDay First day of data range
+     * @param endDay Last day (non-inclusive) of data range
+     * @return Fixed array of packed values
      */
-    function circulatingSupply()
+    function dailyDataRange(uint256 beginDay, uint256 endDay)
         external
         view
-        returns (uint256)
+        returns (uint256[] memory list)
     {
-        /* totalSupply() will always be >= balanceOf(...) */
-        return totalSupply() - balanceOf(address(this));
+        require(beginDay < endDay && endDay <= globals.dailyDataCount, "OCT: range invalid");
+
+        list = new uint256[](endDay - beginDay);
+
+        uint256 src = beginDay;
+        uint256 dst = 0;
+        uint256 v;
+        do {
+            v = uint256(dailyData[src].dayUnclaimedSatoshisTotal) << (SPADE_UINT_SIZE * 2);
+            v |= uint256(dailyData[src].dayStakeSharesTotal) << SPADE_UINT_SIZE;
+            v |= uint256(dailyData[src].dayPayoutTotal);
+
+            list[dst++] = v;
+        } while (++src < endDay);
+
+        return list;
     }
 
     /**
@@ -269,69 +435,65 @@ contract GlobalsAndUtility is ERC20 {
      * Ugly implementation due to limitations of the standard ABI encoder.
      * @return Fixed array of values
      */
-    function getGlobalInfo()
+    function globalInfo()
         external
         view
-        returns (uint256[11] memory)
+        returns (uint256[13] memory)
     {
+        uint256 _claimedBtcAddrCount;
+        uint256 _claimedSatoshisTotal;
+        uint256 _unclaimedSatoshisTotal;
+
+        (_claimedBtcAddrCount, _claimedSatoshisTotal, _unclaimedSatoshisTotal) = _claimStatsDecode(
+            globals.claimStats
+        );
+
         return [
-            globals.daysStored,
-            globals.stakeSharesTotal,
+            // 1
+            globals.lockedSpadesTotal,
             globals.nextStakeSharesTotal,
+            globals.shareRate,
+            globals.stakePenaltyTotal,
+            // 2
+            globals.dailyDataCount,
+            globals.stakeSharesTotal,
             globals.latestStakeId,
-            globals.stakePenaltyPool,
-            globals.unclaimedSatoshisTotal,
-            globals.claimedSatoshisTotal,
-            globals.claimedBtcAddrCount,
-            _getCurrentDay(),
+            _unclaimedSatoshisTotal,
+            _claimedSatoshisTotal,
+            _claimedBtcAddrCount,
+            //
+            block.timestamp,
             totalSupply(),
-            balanceOf(address(this))
+            xfLobby[_currentDay()]
         ];
     }
 
     /**
-     * @dev PUBLIC FACING: External helper to return multiple entries of daily data with
-     * a single call. Ugly implementation due to limitations of the standard ABI encoder.
-     * @return Fixed array of values
+     * @dev PUBLIC FACING: ERC20 totalSupply() is the circulating supply and does not include any
+     * staked Spades. allocatedSupply() includes both.
+     * @return Allocated Supply in Spades
      */
-    function getDailyDataRange(uint256 offset, uint256 count)
+    function allocatedSupply()
         external
         view
-        returns (uint256[] memory list)
+        returns (uint256)
     {
-        uint256 max = offset + count;
-
-        require(offset < max, "OCT: count invalid");
-        require(max <= globals.daysStored, "OCT: offset or count invalid");
-
-        list = new uint256[](count);
-
-        uint256 src = offset;
-        uint256 dst = 0;
-        do {
-            uint256 lo = uint256(dailyData[src].dayPayoutTotal);
-            uint256 hi = uint256(dailyData[src].dayStakeSharesTotal) << 128;
-            ++src;
-
-            list[dst] = hi | lo;
-        } while (++dst < count);
-
-        return list;
+        return totalSupply() + globals.lockedSpadesTotal;
     }
 
     /**
      * @dev PUBLIC FACING: External helper for the current day number since launch time
      * @return Current day number (zero-based)
      */
-    function getCurrentDay()
+    function currentDay()
         external
         view
         returns (uint256)
     {
-        return _getCurrentDay();
+        return _currentDay();
     }
 
-    function _getCurrentDay()
+    function _currentDay()
         internal
         view
         returns (uint256)
@@ -339,83 +501,84 @@ contract GlobalsAndUtility is ERC20 {
         return (block.timestamp - LAUNCH_TIME) / 1 days;
     }
 
-    function _loadGlobals(GlobalsCache memory g)
+    function _dailyDataUpdateAuto(GlobalsCache memory g)
+        internal
+    {
+        _dailyDataUpdate(g, g._currentDay, true);
+    }
+
+    function _globalsLoad(GlobalsCache memory g, GlobalsCache memory gSnapshot)
         internal
         view
     {
         // 1
-        g._daysStored = globals.daysStored;
-        g._stakeSharesTotal = globals.stakeSharesTotal;
+        g._lockedSpadesTotal = globals.lockedSpadesTotal;
         g._nextStakeSharesTotal = globals.nextStakeSharesTotal;
-        g._latestStakeId = globals.latestStakeId;
+        g._shareRate = globals.shareRate;
+        g._stakePenaltyTotal = globals.stakePenaltyTotal;
         // 2
-        g._stakePenaltyPool = globals.stakePenaltyPool;
-        g._unclaimedSatoshisTotal = globals.unclaimedSatoshisTotal;
-        g._claimedSatoshisTotal = globals.claimedSatoshisTotal;
-        g._claimedBtcAddrCount = uint256(globals.claimedBtcAddrCount);
+        g._dailyDataCount = globals.dailyDataCount;
+        g._stakeSharesTotal = globals.stakeSharesTotal;
+        g._latestStakeId = globals.latestStakeId;
+        (g._claimedBtcAddrCount, g._claimedSatoshisTotal, g._unclaimedSatoshisTotal) = _claimStatsDecode(
+            globals.claimStats
+        );
         //
-        g._currentDay = _getCurrentDay();
+        g._currentDay = _currentDay();
+
+        _globalsCacheSnapshot(g, gSnapshot);
     }
 
-    function _snapshotGlobalsCache(GlobalsCache memory g, GlobalsCache memory gSnapshot)
+    function _globalsCacheSnapshot(GlobalsCache memory g, GlobalsCache memory gSnapshot)
         internal
         pure
     {
         // 1
-        gSnapshot._daysStored = g._daysStored;
-        gSnapshot._stakeSharesTotal = g._stakeSharesTotal;
+        gSnapshot._lockedSpadesTotal = g._lockedSpadesTotal;
         gSnapshot._nextStakeSharesTotal = g._nextStakeSharesTotal;
-        gSnapshot._latestStakeId = g._latestStakeId;
+        gSnapshot._shareRate = g._shareRate;
+        gSnapshot._stakePenaltyTotal = g._stakePenaltyTotal;
         // 2
-        gSnapshot._stakePenaltyPool = g._stakePenaltyPool;
+        gSnapshot._dailyDataCount = g._dailyDataCount;
+        gSnapshot._stakeSharesTotal = g._stakeSharesTotal;
+        gSnapshot._latestStakeId = g._latestStakeId;
         gSnapshot._unclaimedSatoshisTotal = g._unclaimedSatoshisTotal;
         gSnapshot._claimedSatoshisTotal = g._claimedSatoshisTotal;
         gSnapshot._claimedBtcAddrCount = g._claimedBtcAddrCount;
     }
 
-    function _saveGlobals1(GlobalsCache memory g)
+    function _globalsSync(GlobalsCache memory g, GlobalsCache memory gSnapshot)
         internal
     {
-        globals.daysStored = uint16(g._daysStored);
-        globals.stakeSharesTotal = uint80(g._stakeSharesTotal);
-        globals.nextStakeSharesTotal = uint80(g._nextStakeSharesTotal);
-        globals.latestStakeId = g._latestStakeId;
-    }
-
-    function _syncGlobals1(GlobalsCache memory g, GlobalsCache memory gSnapshot)
-        internal
-    {
-        if (g._daysStored == gSnapshot._daysStored
-            && g._stakeSharesTotal == gSnapshot._stakeSharesTotal
-            && g._nextStakeSharesTotal == gSnapshot._nextStakeSharesTotal
-            && g._latestStakeId == gSnapshot._latestStakeId) {
-            return;
+        if (g._lockedSpadesTotal != gSnapshot._lockedSpadesTotal
+            || g._nextStakeSharesTotal != gSnapshot._nextStakeSharesTotal
+            || g._shareRate != gSnapshot._shareRate
+            || g._stakePenaltyTotal != gSnapshot._stakePenaltyTotal) {
+            // 1
+            globals.lockedSpadesTotal = uint72(g._lockedSpadesTotal);
+            globals.nextStakeSharesTotal = uint72(g._nextStakeSharesTotal);
+            globals.shareRate = uint40(g._shareRate);
+            globals.stakePenaltyTotal = uint72(g._stakePenaltyTotal);
         }
-        _saveGlobals1(g);
-    }
-
-    function _saveGlobals2(GlobalsCache memory g)
-        internal
-    {
-        globals.stakePenaltyPool = uint80(g._stakePenaltyPool);
-        globals.unclaimedSatoshisTotal = uint64(g._unclaimedSatoshisTotal);
-        globals.claimedSatoshisTotal = uint64(g._claimedSatoshisTotal);
-        globals.claimedBtcAddrCount = uint32(g._claimedBtcAddrCount);
-    }
-
-    function _syncGlobals2(GlobalsCache memory g, GlobalsCache memory gSnapshot)
-        internal
-    {
-        if (g._stakePenaltyPool == gSnapshot._stakePenaltyPool
-            && g._unclaimedSatoshisTotal == gSnapshot._unclaimedSatoshisTotal
-            && g._claimedSatoshisTotal == gSnapshot._claimedSatoshisTotal
-            && g._claimedBtcAddrCount == gSnapshot._claimedBtcAddrCount) {
-            return;
+        if (g._dailyDataCount != gSnapshot._dailyDataCount
+            || g._stakeSharesTotal != gSnapshot._stakeSharesTotal
+            || g._latestStakeId != gSnapshot._latestStakeId
+            || g._unclaimedSatoshisTotal != gSnapshot._unclaimedSatoshisTotal
+            || g._claimedSatoshisTotal != gSnapshot._claimedSatoshisTotal
+            || g._claimedBtcAddrCount != gSnapshot._claimedBtcAddrCount) {
+            // 2
+            globals.dailyDataCount = uint16(g._dailyDataCount);
+            globals.stakeSharesTotal = uint72(g._stakeSharesTotal);
+            globals.latestStakeId = g._latestStakeId;
+            globals.claimStats = _claimStatsEncode(
+                g._claimedBtcAddrCount,
+                g._claimedSatoshisTotal,
+                g._unclaimedSatoshisTotal
+            );
         }
-        _saveGlobals2(g);
     }
 
-    function _loadStake(StakeStore storage stRef, uint48 stakeIdParam, StakeCache memory st)
+    function _stakeLoad(StakeStore storage stRef, uint40 stakeIdParam, StakeCache memory st)
         internal
         view
     {
@@ -425,40 +588,44 @@ contract GlobalsAndUtility is ERC20 {
         st._stakeId = stRef.stakeId;
         st._stakedSpades = stRef.stakedSpades;
         st._stakeShares = stRef.stakeShares;
-        st._pooledDay = stRef.pooledDay;
+        st._lockedDay = stRef.lockedDay;
         st._stakedDays = stRef.stakedDays;
-        st._unpooledDay = stRef.unpooledDay;
+        st._unlockedDay = stRef.unlockedDay;
+        st._isAutoStake = stRef.isAutoStake;
     }
 
-    function _updateStake(StakeStore storage stRef, StakeCache memory st)
+    function _stakeUpdate(StakeStore storage stRef, StakeCache memory st)
         internal
     {
         stRef.stakeId = st._stakeId;
-        stRef.stakedSpades = uint80(st._stakedSpades);
-        stRef.stakeShares = uint80(st._stakeShares);
-        stRef.pooledDay = uint16(st._pooledDay);
+        stRef.stakedSpades = uint72(st._stakedSpades);
+        stRef.stakeShares = uint72(st._stakeShares);
+        stRef.lockedDay = uint16(st._lockedDay);
         stRef.stakedDays = uint16(st._stakedDays);
-        stRef.unpooledDay = uint16(st._unpooledDay);
+        stRef.unlockedDay = uint16(st._unlockedDay);
+        stRef.isAutoStake = st._isAutoStake;
     }
 
-    function _addStake(
+    function _stakeAdd(
         StakeStore[] storage stakeListRef,
-        uint48 newStakeId,
+        uint40 newStakeId,
         uint256 newStakedSpades,
         uint256 newStakeShares,
-        uint256 newPooledDay,
-        uint256 newStakedDays
+        uint256 newLockedDay,
+        uint256 newStakedDays,
+        bool newAutoStake
     )
         internal
     {
         stakeListRef.push(
             StakeStore(
                 newStakeId,
-                uint80(newStakedSpades),
-                uint80(newStakeShares),
-                uint16(newPooledDay),
+                uint72(newStakedSpades),
+                uint72(newStakeShares),
+                uint16(newLockedDay),
                 uint16(newStakedDays),
-                uint16(0) // unpooledDay
+                uint16(0), // unlockedDay
+                newAutoStake
             )
         );
     }
@@ -467,11 +634,11 @@ contract GlobalsAndUtility is ERC20 {
      * @dev Efficiently delete from an unordered array by moving the last element
      * to the "hole" and reducing the array length. Can change the order of the list
      * and invalidate previously held indexes.
-     * @notice stakeListRef length and stakeIndex are already ensured valid in endStake()
-     * @param stakeListRef reference to staked[stakerAddr] array in storage
-     * @param stakeIndex index of the element to delete
+     * @notice stakeListRef length and stakeIndex are already ensured valid in stakeEnd()
+     * @param stakeListRef Reference to stakeLists[stakerAddr] array in storage
+     * @param stakeIndex Index of the element to delete
      */
-    function _removeStakeFromList(StakeStore[] storage stakeListRef, uint256 stakeIndex)
+    function _stakeRemove(StakeStore[] storage stakeListRef, uint256 stakeIndex)
         internal
     {
         uint256 lastIndex = stakeListRef.length - 1;
@@ -489,111 +656,71 @@ contract GlobalsAndUtility is ERC20 {
         stakeListRef.pop();
     }
 
-    /**
-     * @dev Split a penalty 50:50 between origin and stakePenaltyPool
-     */
-    function _splitPenaltyProceeds(GlobalsCache memory g, uint256 penalty)
+    function _claimStatsEncode(
+        uint256 _claimedBtcAddrCount,
+        uint256 _claimedSatoshisTotal,
+        uint256 _unclaimedSatoshisTotal
+    )
         internal
+        pure
+        returns (uint128)
     {
-        uint256 splitPenalty = penalty / 2;
+        uint256 v = _claimedBtcAddrCount << (SATOSHI_UINT_SIZE * 2);
+        v |= _claimedSatoshisTotal << SATOSHI_UINT_SIZE;
+        v |= _unclaimedSatoshisTotal;
 
-        if (splitPenalty != 0) {
-            _transfer(address(this), ORIGIN_ADDR, splitPenalty);
-        }
-
-        /* Use the other half of the penalty to account for an odd-numbered penalty */
-        splitPenalty = penalty - splitPenalty;
-        g._stakePenaltyPool += splitPenalty;
+        return uint128(v);
     }
 
-    function _storeDailyDataBefore(GlobalsCache memory g, uint256 beforeDay)
+    function _claimStatsDecode(uint128 v)
         internal
+        pure
+        returns (uint256 _claimedBtcAddrCount, uint256 _claimedSatoshisTotal, uint256 _unclaimedSatoshisTotal)
     {
-        if (g._daysStored >= beforeDay) {
-            /* Already up-to-date */
-            return;
-        }
+        _claimedBtcAddrCount = v >> (SATOSHI_UINT_SIZE * 2);
+        _claimedSatoshisTotal = (v >> SATOSHI_UINT_SIZE) & SATOSHI_UINT_MASK;
+        _unclaimedSatoshisTotal = v & SATOSHI_UINT_MASK;
 
-        RoundState memory rs;
-        rs._totalSupplyCached = totalSupply();
-
-        uint256 day = g._daysStored;
-        do {
-            if (g._stakeSharesTotal != 0) {
-                _calcDailyRound(g, rs, day);
-                dailyData[day].dayPayoutTotal = uint80(rs._payoutTotal);
-                dailyData[day].dayStakeSharesTotal = uint80(g._stakeSharesTotal);
-            } else {
-                if (day == CLAIM_REWARD_DAYS && g._unclaimedSatoshisTotal != 0) {
-                    /*
-                        WEAREALLSATOSHI REWARDS: Edge case for final day
-
-                        If a day has no open stakes (g._stakeSharesTotal == 0), then that day is skipped, and
-                        the distribution that day would have received is carried forward. If the final day of
-                        the claim phase has no open stakes then there is nowhere to carry this forward, thus the
-                        final remainder of the unclaimed Satoshis cannot be paid out.
-                    */
-                    _splitPenaltyProceeds(g, g._unclaimedSatoshisTotal * SPADES_PER_SATOSHI);
-                    g._unclaimedSatoshisTotal = 0;
-                }
-            }
-
-            /* Stakes started during this day are added to the pool next day */
-            if (g._nextStakeSharesTotal != 0) {
-                g._stakeSharesTotal += g._nextStakeSharesTotal;
-                g._nextStakeSharesTotal = 0;
-            }
-        } while (++day < beforeDay);
-
-        emit DailyDataUpdate(
-            uint40(block.timestamp),
-            uint16(day - g._daysStored),
-            uint16(day),
-            msg.sender
-        );
-        g._daysStored = day;
-
-        if (rs._mintContractBatch != 0) {
-            _mint(address(this), rs._mintContractBatch);
-        }
-        if (rs._mintOriginBatch != 0) {
-            _mint(ORIGIN_ADDR, rs._mintOriginBatch);
-        }
+        return (_claimedBtcAddrCount, _claimedSatoshisTotal, _unclaimedSatoshisTotal);
     }
 
     /**
-     * @dev Estimate the stake payout for a incomplete day
-     * @param g pre-loaded globals cache
-     * @param stakeSharesParam param from stake to calculate bonuses for
-     * @param day day to calculate bonuses for
-     * @return payout Spades
+     * @dev Estimate the stake payout for an incomplete day
+     * @param g Cache of stored globals
+     * @param stakeSharesParam Param from stake to calculate bonuses for
+     * @param day Day to calculate bonuses for
+     * @return Payout in Spades
      */
     function _estimatePayoutRewardsDay(GlobalsCache memory g, uint256 stakeSharesParam, uint256 day)
         internal
         view
-        returns (uint256)
+        returns (uint256 payout)
     {
         /* Prevent updating state for this estimation */
         GlobalsCache memory gTmp;
-        _snapshotGlobalsCache(g, gTmp);
+        _globalsCacheSnapshot(g, gTmp);
 
-        RoundState memory rs;
-        rs._totalSupplyCached = totalSupply();
+        DailyRoundState memory rs;
+        rs._allocSupplyCached = totalSupply() + g._lockedSpadesTotal;
 
-        _calcDailyRound(gTmp, rs, day);
+        _dailyRoundCalc(gTmp, rs, day);
 
-        /* Stake is not in pool so it must be added to total as if it were */
+        /* Stake is no longer locked so it must be added to total as if it were */
         gTmp._stakeSharesTotal += stakeSharesParam;
 
-        return rs._payoutTotal * stakeSharesParam / gTmp._stakeSharesTotal;
+        payout = rs._payoutTotal * stakeSharesParam / gTmp._stakeSharesTotal;
+
+        if (day == BIG_PAY_DAY) {
+            uint256 bigPaySlice = gTmp._unclaimedSatoshisTotal * SPADES_PER_SATOSHI * stakeSharesParam
+                / gTmp._stakeSharesTotal;
+            payout += bigPaySlice + _calcAdoptionBonus(gTmp, bigPaySlice);
+        }
+
+        return payout;
     }
 
-    function _calcAdoptionBonus(
-        uint256 payout,
-        uint256 claimedBtcAddrCountParam,
-        uint256 claimedSatoshisTotalParam
-    )
-        private
+    function _calcAdoptionBonus(GlobalsCache memory g, uint256 payout)
+        internal
         pure
         returns (uint256)
     {
@@ -602,35 +729,19 @@ contract GlobalsAndUtility is ERC20 {
 
             viral = payout * (claimedBtcAddrCount / CLAIMABLE_BTC_ADDR_COUNT)
         */
-        uint256 viral = payout * claimedBtcAddrCountParam / CLAIMABLE_BTC_ADDR_COUNT;
+        uint256 viral = payout * g._claimedBtcAddrCount / CLAIMABLE_BTC_ADDR_COUNT;
 
         /*
             CRIT MASS REWARDS: Add adoption percentage bonus to payout
 
             crit  = payout * (claimedSatoshisTotal / CLAIMABLE_SATOSHIS_TOTAL)
         */
-        uint256 crit = payout * claimedSatoshisTotalParam / CLAIMABLE_SATOSHIS_TOTAL;
+        uint256 crit = payout * g._claimedSatoshisTotal / CLAIMABLE_SATOSHIS_TOTAL;
 
         return viral + crit;
     }
 
-    function _batchMintContract(RoundState memory rs, uint256 amount)
-        private
-        pure
-    {
-        rs._mintContractBatch += amount;
-        rs._totalSupplyCached += amount;
-    }
-
-    function _batchMintOrigin(RoundState memory rs, uint256 amount)
-        private
-        pure
-    {
-        rs._mintOriginBatch += amount;
-        rs._totalSupplyCached += amount;
-    }
-
-    function _calcDailyRound(GlobalsCache memory g, RoundState memory rs, uint256 day)
+    function _dailyRoundCalc(GlobalsCache memory g, DailyRoundState memory rs, uint256 day)
         private
         pure
     {
@@ -643,54 +754,83 @@ contract GlobalsAndUtility is ERC20 {
                                 = exp(log(1.0369) / 364) - 1
                                 = 0.000099553011616349            (approx)
 
-            payout  = totalSupply * dailyInterestRate
-                    = totalSupply / (1 / dailyInterestRate)
-                    = totalSupply / (1 / 0.000099553011616349)
-                    = totalSupply / 10044.899534066692            (approx)
-                    = totalSupply * 10000 / 100448995             (approx)
+            payout  = allocSupply * dailyInterestRate
+                    = allocSupply / (1 / dailyInterestRate)
+                    = allocSupply / (1 / 0.000099553011616349)
+                    = allocSupply / 10044.899534066692            (approx)
+                    = allocSupply * 10000 / 100448995             (* 10000/10000 for int precision)
         */
-        rs._payoutTotal = rs._totalSupplyCached * 10000 / 100448995;
+        rs._payoutTotal = rs._allocSupplyCached * 10000 / 100448995;
 
-        if (day < CLAIM_PHASE_DAYS) {
-            /*
-                WEAREALLSATOSHI REWARDS: Distribute all unclaimed Satoshis evenly across remaining days
-            */
-            uint256 daysRemaining = CLAIM_PHASE_DAYS - day; // 1 <= daysRemaining <= CLAIM_REWARD_DAYS
-            uint256 reward = g._unclaimedSatoshisTotal / daysRemaining;
-            g._unclaimedSatoshisTotal -= reward;
+        if (day < CLAIM_PHASE_END_DAY) {
+            uint256 bigPaySlice = g._unclaimedSatoshisTotal * SPADES_PER_SATOSHI / CLAIM_PHASE_DAYS;
 
-            reward *= SPADES_PER_SATOSHI;
+            uint256 originBonus = bigPaySlice + _calcAdoptionBonus(g, rs._payoutTotal + bigPaySlice);
+            rs._mintOriginBatch += originBonus;
+            rs._allocSupplyCached += originBonus;
 
-            uint256 bonus = _calcAdoptionBonus(
-                rs._payoutTotal + reward,
-                g._claimedBtcAddrCount,
-                g._claimedSatoshisTotal
-            );
-
-            /*
-                Contract:       inflation +          bonus
-                payoutTotal:    inflation + reward + bonus
-                Origin:                     reward + bonus
-
-                (Contract already has WeAreAllSatoshi reward pre-minted)
-            */
-            rs._payoutTotal += bonus;
-            _batchMintContract(rs, rs._payoutTotal);
-            rs._payoutTotal += reward;
-            _batchMintOrigin(rs, reward + bonus);
-        } else {
-            /*
-                Contract:       inflation
-                payoutTotal:    inflation
-                Origin:         nothing
-            */
-            _batchMintContract(rs, rs._payoutTotal);
+            rs._payoutTotal += _calcAdoptionBonus(g, rs._payoutTotal);
         }
 
-        /* Contract already has stakePenaltyPool from _splitPenaltyProceeds() */
-        if (g._stakePenaltyPool != 0) {
-            rs._payoutTotal += g._stakePenaltyPool;
-            g._stakePenaltyPool = 0;
+        if (g._stakePenaltyTotal != 0) {
+            rs._payoutTotal += g._stakePenaltyTotal;
+            g._stakePenaltyTotal = 0;
         }
     }
+
+    function _dailyRoundCalcAndStore(GlobalsCache memory g, DailyRoundState memory rs, uint256 day)
+        private
+    {
+        _dailyRoundCalc(g, rs, day);
+
+        dailyData[day].dayPayoutTotal = uint72(rs._payoutTotal);
+        dailyData[day].dayStakeSharesTotal = uint72(g._stakeSharesTotal);
+        dailyData[day].dayUnclaimedSatoshisTotal = uint56(g._unclaimedSatoshisTotal);
+    }
+
+    function _dailyDataUpdate(GlobalsCache memory g, uint256 beforeDay, bool isAutoUpdate)
+        private
+    {
+        if (g._dailyDataCount >= beforeDay) {
+            /* Already up-to-date */
+            return;
+        }
+
+        DailyRoundState memory rs;
+        rs._allocSupplyCached = totalSupply() + g._lockedSpadesTotal;
+
+        uint256 day = g._dailyDataCount;
+
+        _dailyRoundCalcAndStore(g, rs, day);
+
+        /* Stakes started during this day are added to the total the next day */
+        if (g._nextStakeSharesTotal != 0) {
+            g._stakeSharesTotal += g._nextStakeSharesTotal;
+            g._nextStakeSharesTotal = 0;
+        }
+
+        while (++day < beforeDay) {
+            _dailyRoundCalcAndStore(g, rs, day);
+        }
+
+        _emitDailyDataUpdate(g._dailyDataCount, day, isAutoUpdate);
+        g._dailyDataCount = day;
+
+        if (rs._mintOriginBatch != 0) {
+            _mint(ORIGIN_ADDR, rs._mintOriginBatch);
+        }
+    }
+
+    function _emitDailyDataUpdate(uint256 beginDay, uint256 endDay, bool isAutoUpdate)
+        private
+    {
+        emit DailyDataUpdate( // (auto-generated event)
+            uint256(uint40(block.timestamp))
+                | (uint256(uint16(beginDay)) << 40)
+                | (uint256(uint16(endDay)) << 56)
+                | (isAutoUpdate ? (1 << 72) : 0),
+            msg.sender
+        );
+    }
 }
+

@@ -1,10 +1,11 @@
-pragma solidity ^0.5.7;
+pragma solidity 0.5.13;
 
+import "./StakeableToken.sol";
 import "./GlobalsAndUtility.sol";
 import "../node_modules/openzeppelin-solidity/contracts/cryptography/MerkleProof.sol";
 
 
-contract UTXOClaimValidation is GlobalsAndUtility {
+contract UTXOClaimValidation is StakeableToken {
     /**
      * @dev PUBLIC FACING: Verify a BTC address and balance are unclaimed and part of the Merkle tree
      * @param btcAddr Bitcoin address (binary; no base58-check encoding)
@@ -12,15 +13,18 @@ contract UTXOClaimValidation is GlobalsAndUtility {
      * @param proof Merkle tree proof
      * @return True if can be claimed
      */
-    function canClaimBtcAddress(bytes20 btcAddr, uint256 rawSatoshis, bytes32[] calldata proof)
+    function btcAddressIsClaimable(bytes20 btcAddr, uint256 rawSatoshis, bytes32[] calldata proof)
         external
         view
         returns (bool)
     {
-        require(_getCurrentDay() < CLAIM_PHASE_DAYS, "OCT: Claim phase has ended");
+        uint256 day = _currentDay();
+
+        require(day >= CLAIM_PHASE_START_DAY, "OCT: Claim phase has not yet started");
+        require(day < CLAIM_PHASE_END_DAY, "OCT: Claim phase has ended");
 
         /* Don't need to check Merkle proof if UTXO BTC address has already been claimed    */
-        if (claimedBtcAddresses[btcAddr]) {
+        if (btcAddressClaims[btcAddr]) {
             return false;
         }
 
@@ -58,20 +62,24 @@ contract UTXOClaimValidation is GlobalsAndUtility {
     }
 
     /**
-     * @dev Verify that a Bitcoin signature matches the claim message containing
-     * the Ethereum address
+     * @dev PUBLIC FACING: Verify that a Bitcoin signature matches the claim message containing
+     * the Ethereum address and claim param hash
      * @param claimToAddr Eth address within the signed claim message
+     * @param claimParamHash Param hash within the signed claim message
      * @param pubKeyX First  half of uncompressed ECDSA public key
      * @param pubKeyY Second half of uncompressed ECDSA public key
+     * @param claimFlags Claim flags specifying address and message formats
      * @param v v parameter of ECDSA signature
      * @param r r parameter of ECDSA signature
      * @param s s parameter of ECDSA signature
      * @return True if matching
      */
-    function signatureMatchesClaim(
+    function claimMessageMatchesSignature(
         address claimToAddr,
+        bytes32 claimParamHash,
         bytes32 pubKeyX,
         bytes32 pubKeyY,
+        uint8 claimFlags,
         uint8 v,
         bytes32 r,
         bytes32 s
@@ -88,24 +96,20 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         */
         address pubKeyEthAddr = pubKeyToEthAddress(pubKeyX, pubKeyY);
 
-        /* Try matching the most likely type of claim message */
-        bytes32 messageHash = _hash256(_createStandardClaimMessage(claimToAddr));
+        /* Create and hash the claim message text */
+        bytes32 messageHash = _hash256(
+            _claimMessageCreate(claimToAddr, claimParamHash, claimFlags)
+        );
 
-        if (ecrecover(messageHash, v, r, s) == pubKeyEthAddr) {
-            return true;
-        }
-
-        /* Otherwise try the matching the legacy claim message as a fallback */
-        messageHash = _hash256(_createLegacyClaimMessage(claimToAddr));
-
+        /* Verify the public key */
         return ecrecover(messageHash, v, r, s) == pubKeyEthAddr;
     }
 
     /**
-     * @dev Derive an Ethereum address from an ECDSA public key
+     * @dev PUBLIC FACING: Derive an Ethereum address from an ECDSA public key
      * @param pubKeyX First  half of uncompressed ECDSA public key
      * @param pubKeyY Second half of uncompressed ECDSA public key
-     * @return Derived Ethereum address
+     * @return Derived Eth address
      */
     function pubKeyToEthAddress(bytes32 pubKeyX, bytes32 pubKeyY)
         public
@@ -116,19 +120,17 @@ contract UTXOClaimValidation is GlobalsAndUtility {
     }
 
     /**
-     * @dev Derive a Bitcoin address from an ECDSA public key
+     * @dev PUBLIC FACING: Derive a Bitcoin address from an ECDSA public key
      * @param pubKeyX First  half of uncompressed ECDSA public key
      * @param pubKeyY Second half of uncompressed ECDSA public key
-     * @param addrType Type of BTC address to derive from the public key
+     * @param claimFlags Claim flags specifying address and message formats
      * @return Derived Bitcoin address (binary; no base58-check encoding)
      */
-    function pubKeyToBtcAddress(bytes32 pubKeyX, bytes32 pubKeyY, uint8 addrType)
+    function pubKeyToBtcAddress(bytes32 pubKeyX, bytes32 pubKeyY, uint8 claimFlags)
         public
         pure
         returns (bytes20)
     {
-        require(addrType < BTC_ADDR_TYPE_COUNT, "OCT: addrType invalid");
-
         /*
             Helpful references:
              - https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
@@ -136,22 +138,29 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         */
         uint8 startingByte;
         bytes memory pubKey;
+        bool compressed = (claimFlags & CLAIM_FLAG_BTC_ADDR_COMPRESSED) != 0;
+        bool nested = (claimFlags & CLAIM_FLAG_BTC_ADDR_P2WPKH_IN_P2SH) != 0;
+        bool bech32 = (claimFlags & CLAIM_FLAG_BTC_ADDR_BECH32) != 0;
 
-        if (addrType == BTC_ADDR_TYPE_P2PKH_UNCOMPRESSED) {
-            /* Uncompressed public key format. */
-            startingByte = 0x04;
-            pubKey = abi.encodePacked(startingByte, pubKeyX, pubKeyY);
-        } else {
-            /* Compressed public key format. */
+        if (compressed) {
+            /* Compressed public key format */
+            require(!(nested && bech32), "OCT: claimFlags invalid");
+
             startingByte = (pubKeyY[31] & 0x01) == 0 ? 0x02 : 0x03;
             pubKey = abi.encodePacked(startingByte, pubKeyX);
+        } else {
+            /* Uncompressed public key format */
+            require(!nested && !bech32, "OCT: claimFlags invalid");
+
+            startingByte = 0x04;
+            pubKey = abi.encodePacked(startingByte, pubKeyX, pubKeyY);
         }
 
         bytes20 pubKeyHash = _hash160(pubKey);
-        if (addrType != BTC_ADDR_TYPE_P2WPKH_IN_P2SH) {
-            return pubKeyHash;
+        if (nested) {
+            return _hash160(abi.encodePacked(hex"0014", pubKeyHash));
         }
-        return _hash160(abi.encodePacked(hex"0014", pubKeyHash));
+        return pubKeyHash;
     }
 
     /**
@@ -166,7 +175,31 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         pure
         returns (bool)
     {
-        /* Calculate the 32 byte Merkle leaf associated with this BTC address and balance */
+        /*
+            Ensure the proof does not attempt to treat a Merkle leaf as if it were an
+            internal Merkle tree node. A leaf will always have the zero-fill. An
+            internal node will never have the zero-fill, as guaranteed by OCT's Merkle
+            tree construction.
+
+            The first element, proof[0], will always be a leaf because it is the pair
+            of the leaf being validated. The rest of the elements, proof[1..length-1],
+            must be internal nodes.
+
+            The number of leaves (CLAIMABLE_BTC_ADDR_COUNT) is even, as guaranteed by
+            OCT's Merkle tree construction, which eliminates the only edge-case where
+            this validation would not apply.
+        */
+        require((uint256(proof[0]) & MERKLE_LEAF_FILL_MASK) == 0, "OCT: proof invalid");
+        for (uint256 i = 1; i < proof.length; i++) {
+            require((uint256(proof[i]) & MERKLE_LEAF_FILL_MASK) != 0, "OCT: proof invalid");
+        }
+
+        /*
+            Calculate the 32 byte Merkle leaf associated with this BTC address and balance
+                160 bits: BTC address
+                 52 bits: Zero-fill
+                 45 bits: Satoshis (limited by MAX_BTC_ADDR_BALANCE_SATOSHIS)
+        */
         bytes32 merkleLeaf = bytes32(btcAddr) | bytes32(rawSatoshis);
 
         /* Verify the Merkle tree proof */
@@ -187,64 +220,91 @@ contract UTXOClaimValidation is GlobalsAndUtility {
         return MerkleProof.verify(proof, MERKLE_TREE_ROOT, merkleLeaf);
     }
 
-    /**
-     * @dev Creates a OCT claim message from an Ethereum address
-     * @param claimToAddr Destination Eth address to credit the claimed Spades
-     * @return Standard claim message
-     */
-    function _createStandardClaimMessage(address claimToAddr)
+    function _claimMessageCreate(address claimToAddr, bytes32 claimParamHash, uint8 claimFlags)
         private
         pure
         returns (bytes memory)
     {
+        bytes memory prefixStr = (claimFlags & CLAIM_FLAG_MSG_PREFIX_OLD) != 0
+            ? OLD_CLAIM_PREFIX_STR
+            : STD_CLAIM_PREFIX_STR;
+
+        bool includeAddrChecksum = (claimFlags & CLAIM_FLAG_ETH_ADDR_LOWERCASE) == 0;
+
+        bytes memory addrStr = _addressStringCreate(claimToAddr, includeAddrChecksum);
+
+        if (claimParamHash == 0) {
+            return abi.encodePacked(
+                BITCOIN_SIG_PREFIX_LEN,
+                BITCOIN_SIG_PREFIX_STR,
+                uint8(prefixStr.length) + ETH_ADDRESS_HEX_LEN,
+                prefixStr,
+                addrStr
+            );
+        }
+
+        bytes memory claimParamHashStr = new bytes(CLAIM_PARAM_HASH_HEX_LEN);
+
+        _hexStringFromData(claimParamHashStr, claimParamHash, CLAIM_PARAM_HASH_BYTE_LEN);
+
         return abi.encodePacked(
-            uint8(24),
-            bytes24("Bitcoin Signed Message:\n"),
-            uint8(15 + ETH_ADDRESS_HEX_LEN),
-            bytes15("Claim_OCT_to_0x"),
-            _createHexStringFromEthAddress(claimToAddr)
+            BITCOIN_SIG_PREFIX_LEN,
+            BITCOIN_SIG_PREFIX_STR,
+            uint8(prefixStr.length) + ETH_ADDRESS_HEX_LEN + 1 + CLAIM_PARAM_HASH_HEX_LEN,
+            prefixStr,
+            addrStr,
+            "_",
+            claimParamHashStr
         );
     }
 
-    /**
-     * @dev Creates a BitcoinOCT claim message from an Ethereum address
-     * @param claimToAddr Destination Eth address to credit the claimed Spades
-     * @return Legacy claim message
-     */
-    function _createLegacyClaimMessage(address claimToAddr)
+    function _addressStringCreate(address addr, bool includeAddrChecksum)
         private
         pure
-        returns (bytes memory)
+        returns (bytes memory addrStr)
     {
-        return abi.encodePacked(
-            uint8(24),
-            bytes24("Bitcoin Signed Message:\n"),
-            uint8(22 + ETH_ADDRESS_HEX_LEN),
-            bytes22("Claim_BitcoinOCT_to_0x"),
-            _createHexStringFromEthAddress(claimToAddr)
-        );
+        addrStr = new bytes(ETH_ADDRESS_HEX_LEN);
+        _hexStringFromData(addrStr, bytes32(bytes20(addr)), ETH_ADDRESS_BYTE_LEN);
+
+        if (includeAddrChecksum) {
+            bytes32 addrStrHash = keccak256(addrStr);
+
+            uint256 offset = 0;
+
+            for (uint256 i = 0; i < ETH_ADDRESS_BYTE_LEN; i++) {
+                uint8 b = uint8(addrStrHash[i]);
+
+                _addressStringChecksumChar(addrStr, offset++, b >> 4);
+                _addressStringChecksumChar(addrStr, offset++, b & 0x0f);
+            }
+        }
+
+        return addrStr;
     }
 
-    /**
-     * @dev Creates a lowercase hex string from an Ethereum address
-     * @param ethAddr Eth address to convert
-     * @return Hex string of Eth address
-     */
-    function _createHexStringFromEthAddress(address ethAddr)
+    function _addressStringChecksumChar(bytes memory addrStr, uint256 offset, uint8 hashNybble)
         private
         pure
-        returns (bytes memory hexStr)
     {
-        hexStr = new bytes(ETH_ADDRESS_HEX_LEN);
+        bytes1 ch = addrStr[offset];
+
+        if (ch >= "a" && hashNybble >= 8) {
+            addrStr[offset] = ch ^ 0x20;
+        }
+    }
+
+    function _hexStringFromData(bytes memory hexStr, bytes32 data, uint256 dataLen)
+        private
+        pure
+    {
         uint256 offset = 0;
 
-        for (uint256 i = 0; i < ETH_ADDRESS_BYTE_LEN; i++) {
-            uint8 b = uint8(bytes20(ethAddr)[i]);
+        for (uint256 i = 0; i < dataLen; i++) {
+            uint8 b = uint8(data[i]);
 
             hexStr[offset++] = HEX_DIGITS[b >> 4];
             hexStr[offset++] = HEX_DIGITS[b & 0x0f];
         }
-        return hexStr;
     }
 
     /**
